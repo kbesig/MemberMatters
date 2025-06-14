@@ -169,7 +169,8 @@ class User(ExportModelOperationsMixin("user"), AbstractBaseUser, PermissionsMixi
     password_reset_expire = models.DateTimeField(default=None, blank=True, null=True)
     staff = models.BooleanField(default=False)  # an admin user for the portal
     admin = models.BooleanField(default=False)  # a portal superuser
-
+    collective_invite = models.IntegerField(default=0)
+    collective_member = models.IntegerField(default=0)
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []  # Email & Password are required by default.
 
@@ -299,6 +300,36 @@ class User(ExportModelOperationsMixin("user"), AbstractBaseUser, PermissionsMixi
         return True
 
 
+class Collective(ExportModelOperationsMixin("collective"), models.Model):
+    id = models.AutoField(primary_key=True)
+    name = models.CharField(max_length=255)
+    primary_member = models.OneToOneField('Profile', on_delete=models.SET_NULL, related_name="collective_primary_member", null=True, blank=True)
+    
+
+    def __str__(self):
+        return self.name
+
+    def get_members(self):
+        return self.members.all()
+    
+    def get_member(self, id):
+        return self.members.get(id=id)
+    
+    def get_invites(self):
+        return self.members_invites.all()
+    
+    def get_invite(self, id):
+        return self.members_invites.get(id=id)
+
+    def get_primary_member(self):
+        return self.primary_member
+
+    def get_head(self):
+        return self.get_primary_member()
+
+
+
+
 class Profile(ExportModelOperationsMixin("profile"), models.Model):
     STATES = (
         ("noob", "Needs Induction"),
@@ -346,6 +377,8 @@ class Profile(ExportModelOperationsMixin("profile"), models.Model):
     phone = models.CharField(validators=[phone_regex], max_length=12, blank=True)
     state = models.CharField(max_length=11, default="noob", choices=STATES)
     vehicle_registration_plate = models.CharField(max_length=30, blank=True, null=True)
+    collective = models.ForeignKey(Collective, on_delete=models.SET_NULL, related_name="members", null=True, blank=True)
+    collective_invite = models.ForeignKey(Collective, on_delete=models.SET_NULL, related_name="members_invites", null=True, blank=True)
 
     membership_plan = models.ForeignKey(
         PaymentPlan,
@@ -556,6 +589,11 @@ class Profile(ExportModelOperationsMixin("profile"), models.Model):
                 "last4": self.stripe_card_last_digits,
             },
             "subscriptionStatus": self.subscription_status,
+            "collective": {
+                "name": self.collective.name if self.collective else None,
+                "head": self.collective.get_head().get_full_name() if self.collective else None,
+                "members": [member.get_full_name() for member in self.collective.get_members()] if self.collective else [],
+            } if self.collective else None,
         }
 
     def get_access_permissions(self, ignore_user_state=False):
@@ -662,3 +700,10 @@ class Profile(ExportModelOperationsMixin("profile"), models.Model):
             self.created = timezone.now()
         self.modified = timezone.now()
         return super(Profile, self).save(*args, **kwargs)
+
+    def has_collective_invite(self):
+        return self.collective_invite is not None
+    
+    def has_collective(self):
+        return self.collective is not None
+

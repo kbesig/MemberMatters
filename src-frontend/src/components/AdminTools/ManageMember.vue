@@ -18,6 +18,7 @@
       >
         <q-tab name="profile" :label="$t('menuLink.profile')" />
         <q-tab name="access" :label="$t('adminTools.access')" />
+        <q-tab name="collective" :label="$t('adminTools.collective')" />
         <q-tab name="billing" :label="$t('adminTools.billing')" />
         <q-tab name="log" :label="$t('adminTools.log')" />
       </q-tabs>
@@ -406,6 +407,49 @@
                 </q-item>
               </q-list>
             </div>
+          </div>
+        </q-tab-panel>
+
+        <q-tab-panel name="collective">
+          <div class="column q-gutter-y-sm full-width">
+            <h6 class="q-mt-md q-mb-sm">
+              {{ $t('adminTools.collectiveDescription') }}
+            </h6>
+
+            <q-list bordered padding class="rounded-borders">
+              <q-item>
+                <q-item-section>
+                  <q-item-label>
+                    {{ selectedMember.collective?.name || $t('error.noValue') }}
+                  </q-item-label>
+                  <q-item-label caption>
+                    {{ $t('adminTools.collectiveName') }}
+                  </q-item-label>
+                </q-item-section>
+              </q-item>
+
+              <q-item>
+                <q-item-section>
+                  <q-item-label>
+                    {{ selectedMember.collective?.head || $t('error.noValue') }}
+                  </q-item-label>
+                  <q-item-label caption>
+                    {{ $t('adminTools.collectiveHead') }}
+                  </q-item-label>
+                </q-item-section>
+              </q-item>
+
+              <q-item>
+                <q-item-section>
+                  <q-item-label>
+                    {{ selectedMember.collective?.members || $t('error.noValue') }}
+                  </q-item-label>
+                  <q-item-label caption>
+                    {{ $t('adminTools.collectiveMembers') }}
+                  </q-item-label>
+                </q-item-section>
+              </q-item>
+            </q-list>
           </div>
         </q-tab-panel>
 

@@ -497,6 +497,10 @@ export default {
     startDate: 'Start Date',
     noSubscription: 'No subscription was found for this member.',
     noMembers: 'No members were found that match your filter or search query.',
+    collectiveName: 'Name of Household/Business',
+    collectiveHead: 'Head of Household/Business',
+    collectiveMembers: 'Current Family/Business Members',
+    collective: 'Household/Business',
   },
   doors: {
     nodata: 'There are no doors in the system.',

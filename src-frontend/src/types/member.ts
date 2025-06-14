@@ -41,6 +41,11 @@ export const MemberProfileSchema = z.object({
     last4: z.string(),
   }),
   subscriptionStatus: SubscriptionStateSchema,
+  collective: z.object({
+    name: z.string(),
+    head: z.string(),
+    members: z.array(z.string()),
+  }).nullable(),
 });
 
 export type MemberProfile = z.infer<typeof MemberProfileSchema>;

@@ -592,7 +592,7 @@ class Profile(ExportModelOperationsMixin("profile"), models.Model):
             "collective": {
                 "name": self.collective.name if self.collective else None,
                 "head": self.collective.get_head().get_full_name() if self.collective else None,
-                "members": [member.get_full_name() for member in self.collective.get_members()] if self.collective else [],
+                "members": [{"name": member.get_full_name(), "id": member.user.id} for member in self.collective.get_members()] if self.collective else [],
             } if self.collective else None,
         }
 

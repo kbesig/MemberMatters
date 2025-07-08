@@ -413,43 +413,65 @@
         <q-tab-panel name="collective">
           <div class="column q-gutter-y-sm full-width">
             <h6 class="q-mt-md q-mb-sm">
-              {{ $t('adminTools.collectiveDescription') }}
+              {{ selectedMember.collective?.name || $t('error.noValue') }}
             </h6>
 
-            <q-list bordered padding class="rounded-borders">
-              <q-item>
-                <q-item-section>
-                  <q-item-label>
-                    {{ selectedMember.collective?.name || $t('error.noValue') }}
-                  </q-item-label>
-                  <q-item-label caption>
-                    {{ $t('adminTools.collectiveName') }}
-                  </q-item-label>
-                </q-item-section>
-              </q-item>
+            <div class="text-subtitle2 q-mb-sm">
+              {{ $t('adminTools.collectiveHead') }}: {{ selectedMember.collective?.head || $t('error.noValue') }}
+            </div>
 
-              <q-item>
-                <q-item-section>
-                  <q-item-label>
-                    {{ selectedMember.collective?.head || $t('error.noValue') }}
-                  </q-item-label>
-                  <q-item-label caption>
-                    {{ $t('adminTools.collectiveHead') }}
-                  </q-item-label>
-                </q-item-section>
-              </q-item>
+            <div class="text-h6 q-mb-sm">
+              {{ $t('adminTools.collectiveMembers') }}
+            </div>
 
-              <q-item>
-                <q-item-section>
-                  <q-item-label>
-                    {{ selectedMember.collective?.members || $t('error.noValue') }}
-                  </q-item-label>
-                  <q-item-label caption>
-                    {{ $t('adminTools.collectiveMembers') }}
-                  </q-item-label>
-                </q-item-section>
-              </q-item>
-            </q-list>
+            <q-table
+              :rows="selectedMember.collective?.members || []"
+              :columns="[
+                {
+                  name: 'name',
+                  label: $t('adminTools.collectiveMemberName'),
+                  field: row => row.name,
+                  sortable: true,
+                }
+              ]"
+              row-key="id"
+              v-model:pagination="pagination"
+              :loading="loading"
+              :grid="$q.screen.xs"
+            >
+              <template v-slot:body="props">
+                <q-tr :props="props">
+                  <q-td key="name" :props="props">
+                    <router-link :to="{ name: 'manageMember', params: { memberId: props.row.id }}">
+                      {{ props.row.name }}
+                    </router-link>
+                  </q-td>
+                </q-tr>
+              </template>
+
+              <template v-slot:item="props">
+                <div
+                  class="q-pa-sm col-xs-12 col-sm-6 col-md-4 col-lg-3 grid-style-transition"
+                >
+                  <q-card class="q-py-sm">
+                    <q-list dense>
+                      <q-item>
+                        <q-item-section>
+                          <q-item-label>{{ $t('adminTools.collectiveMemberName') }}</q-item-label>
+                        </q-item-section>
+                        <q-item-section side>
+                          <q-item-label caption>
+                            <router-link :to="{ name: 'manageMember', params: { memberId: props.row.id }}">
+                              {{ props.row.name }}
+                            </router-link>
+                          </q-item-label>
+                        </q-item-section>
+                      </q-item>
+                    </q-list>
+                  </q-card>
+                </div>
+              </template>
+            </q-table>
           </div>
         </q-tab-panel>
 

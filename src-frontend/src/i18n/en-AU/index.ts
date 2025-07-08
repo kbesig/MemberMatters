@@ -501,6 +501,7 @@ export default {
     collectiveHead: 'Head of Household/Business',
     collectiveMembers: 'Current Family/Business Members',
     collective: 'Household/Business',
+    collectiveMemberName: 'Member Name',
   },
   doors: {
     nodata: 'There are no doors in the system.',

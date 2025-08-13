@@ -121,7 +121,7 @@ class UserEventLogAdmin(admin.ModelAdmin):
 class EventLogAdmin(admin.ModelAdmin):
     readonly_fields = ("date",)
 
-@admin.register(Collective)
-class CollectiveAdmin(admin.ModelAdmin):
+@admin.register(BillingGroup)
+class BillingGroupAdmin(admin.ModelAdmin):
     pass
 

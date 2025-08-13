@@ -18,7 +18,7 @@
       >
         <q-tab name="profile" :label="$t('menuLink.profile')" />
         <q-tab name="access" :label="$t('adminTools.access')" />
-        <q-tab name="collective" :label="$t('adminTools.collective')" />
+        <q-tab name="billingGroup" :label="$t('adminTools.billingGroup')" />
         <q-tab name="billing" :label="$t('adminTools.billing')" />
         <q-tab name="log" :label="$t('adminTools.log')" />
       </q-tabs>
@@ -410,26 +410,26 @@
           </div>
         </q-tab-panel>
 
-        <q-tab-panel name="collective">
+        <q-tab-panel name="billingGroup">
           <div class="column q-gutter-y-sm full-width">
             <h6 class="q-mt-md q-mb-sm">
-              {{ selectedMember.collective?.name || $t('error.noValue') }}
+              {{ selectedMember.billingGroup?.name || $t('error.noValue') }}
             </h6>
 
             <div class="text-subtitle2 q-mb-sm">
-              {{ $t('adminTools.collectiveHead') }}: {{ selectedMember.collective?.head || $t('error.noValue') }}
+              {{ $t('adminTools.billingGroupHead') }}: {{ selectedMember.billingGroup?.head || $t('error.noValue') }}
             </div>
 
             <div class="text-h6 q-mb-sm">
-              {{ $t('adminTools.collectiveMembers') }}
+              {{ $t('adminTools.billingGroupMembers') }}
             </div>
 
             <q-table
-              :rows="selectedMember.collective?.members || []"
+              :rows="selectedMember.billingGroup?.members || []"
               :columns="[
                 {
                   name: 'name',
-                  label: $t('adminTools.collectiveMemberName'),
+                  label: $t('adminTools.billingGroupMemberName'),
                   field: row => row.name,
                   sortable: true,
                 }
@@ -457,7 +457,7 @@
                     <q-list dense>
                       <q-item>
                         <q-item-section>
-                          <q-item-label>{{ $t('adminTools.collectiveMemberName') }}</q-item-label>
+                          <q-item-label>{{ $t('adminTools.billingGroupMemberName') }}</q-item-label>
                         </q-item-section>
                         <q-item-section side>
                           <q-item-label caption>

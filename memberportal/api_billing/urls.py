@@ -13,6 +13,16 @@ urlpatterns = [
         name="MemberTiers",
     ),
     path(
+        "api/billing/addons/",
+        views.SubscriptionAddons.as_view(),
+        name="SubscriptionAddons",
+    ),
+    path(
+        "api/billing/addons/manage/",
+        views.SubscriptionAddonManagement.as_view(),
+        name="SubscriptionAddonManagement",
+    ),
+    path(
         "api/billing/plans/<int:plan_id>/signup/",
         views.PaymentPlanSignup.as_view(),
         name="PaymentPlanSignup",

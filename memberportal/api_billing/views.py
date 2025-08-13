@@ -203,13 +203,30 @@ class MemberTiers(StripeAPIView):
         return Response(formatted_tiers)
 
 
+class SubscriptionAddons(APIView):
+    """
+    get: gets a list of all available subscription add-ons.
+    """
+
+    def get(self, request):
+        from api_admin_tools.models import SubscriptionAddon
+        
+        addons = SubscriptionAddon.objects.filter(visible=True)
+        formatted_addons = []
+
+        for addon in addons:
+            formatted_addons.append(addon.get_object())
+
+        return Response(formatted_addons)
+
+
 class PaymentPlanSignup(StripeAPIView):
     """
     post: attempts to sign the member up to a new payment plan.
     """
 
     def create_subscription(
-        self, request: HttpRequest, new_plan: PaymentPlan, attempts: int = 0
+        self, request: HttpRequest, new_plan: PaymentPlan, addons: list = None, attempts: int = 0
     ):
         attempts += 1
 
@@ -228,11 +245,20 @@ class PaymentPlanSignup(StripeAPIView):
             )
 
         try:
+            # Start with the main plan
+            items = [{"price": new_plan.stripe_id}]
+            
+            # Add any add-ons
+            if addons:
+                for addon in addons:
+                    items.append({
+                        "price": addon["stripe_price_id"],
+                        "quantity": addon.get("quantity", 1)
+                    })
+            
             return stripe.Subscription.create(
                 customer=request.user.profile.stripe_customer_id,
-                items=[
-                    {"price": new_plan.stripe_id},
-                ],
+                items=items,
             )
 
         except stripe.error.InvalidRequestError as e:
@@ -314,7 +340,10 @@ class PaymentPlanSignup(StripeAPIView):
         if current_plan:
             return Response({"success": False}, status=status.HTTP_409_CONFLICT)
 
-        new_subscription = self.create_subscription(request, new_plan)
+        # Get add-ons from request data
+        addons = request.data.get('addons', [])
+        
+        new_subscription = self.create_subscription(request, new_plan, addons)
 
         try:
             if new_subscription.status == "active":
@@ -499,6 +528,33 @@ class SubscriptionInfo(StripeAPIView):
             )
 
             if s:
+                # Get add-ons from subscription items
+                addons = []
+                from api_admin_tools.models import SubscriptionAddon
+                
+                for item in s.items.data:
+                    if item.price.id != request.user.profile.membership_plan.stripe_id:
+                        # This is an add-on item
+                        try:
+                            addon = SubscriptionAddon.objects.get(stripe_price_id=item.price.id)
+                            addons.append({
+                                "id": addon.id,
+                                "name": addon.name,
+                                "quantity": item.quantity,
+                                "cost": item.price.unit_amount,
+                                "cost_display": f"${item.price.unit_amount/100:.2f}",
+                                "stripe_subscription_item_id": item.id
+                            })
+                        except SubscriptionAddon.DoesNotExist:
+                            # Unknown add-on, include basic info
+                            addons.append({
+                                "name": "Unknown Add-on",
+                                "quantity": item.quantity,
+                                "cost": item.price.unit_amount,
+                                "cost_display": f"${item.price.unit_amount/100:.2f}",
+                                "stripe_subscription_item_id": item.id
+                            })
+                
                 subscription = {
                     "billingCycleAnchor": s.billing_cycle_anchor,
                     "currentPeriodEnd": s.current_period_end,
@@ -507,6 +563,7 @@ class SubscriptionInfo(StripeAPIView):
                     "startDate": s.start_date,
                     "membershipTier": request.user.profile.membership_plan.member_tier.get_object(),
                     "membershipPlan": request.user.profile.membership_plan.get_object(),
+                    "addons": addons,
                 }
                 return Response({"success": True, "subscription": subscription})
 
@@ -672,6 +729,78 @@ class PaymentPlanResumeCancel(StripeAPIView):
                     )
 
             return Response({"success": False})
+
+
+class SubscriptionAddonManagement(StripeAPIView):
+    """
+    post: adds or removes add-ons from an existing subscription.
+    """
+
+    def post(self, request):
+        from api_admin_tools.models import SubscriptionAddon
+        
+        action = request.data.get('action')  # 'add' or 'remove'
+        addon_id = request.data.get('addon_id')
+        quantity = request.data.get('quantity', 1)
+        
+        if not request.user.profile.stripe_subscription_id:
+            return Response(
+                {"success": False, "message": "No active subscription found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        try:
+            addon = SubscriptionAddon.objects.get(pk=addon_id, visible=True)
+        except SubscriptionAddon.DoesNotExist:
+            return Response(
+                {"success": False, "message": "Add-on not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        try:
+            subscription = stripe.Subscription.retrieve(
+                request.user.profile.stripe_subscription_id
+            )
+            
+            if action == 'add':
+                # Add the add-on to the subscription
+                stripe.Subscription.modify(
+                    request.user.profile.stripe_subscription_id,
+                    items=[
+                        {"price": addon.stripe_price_id, "quantity": quantity}
+                    ],
+                    proration_behavior='create_prorations'
+                )
+                
+                request.user.log_event(
+                    f"Added add-on {addon.name} (quantity: {quantity}) to subscription.",
+                    "stripe"
+                )
+                
+            elif action == 'remove':
+                # Find the subscription item for this add-on and remove it
+                for item in subscription.items.data:
+                    if item.price.id == addon.stripe_price_id:
+                        stripe.SubscriptionItem.delete(item.id)
+                        break
+                
+                request.user.log_event(
+                    f"Removed add-on {addon.name} from subscription.",
+                    "stripe"
+                )
+            
+            return Response({"success": True})
+            
+        except stripe.error.StripeError as e:
+            capture_exception(e)
+            request.user.log_event(
+                f"Stripe error while managing add-on: {str(e)}",
+                "stripe"
+            )
+            return Response(
+                {"success": False, "message": "Error updating subscription."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class StripeWebhook(StripeAPIView):

@@ -412,19 +412,39 @@
 
         <q-tab-panel name="billingGroup">
           <div class="column q-gutter-y-sm full-width">
-            <h6 class="q-mt-md q-mb-sm">
-              {{ selectedMember.billingGroup?.name || $t('error.noValue') }}
-            </h6>
+            <div class="row justify-between items-center q-mb-md">
+              <h6 class="q-mt-md q-mb-sm">
+                {{ selectedMember.billingGroup?.name || $t('adminTools.noBillingGroup') }}
+              </h6>
+              
+              <div class="row q-gutter-sm">
+                <q-btn
+                  v-if="!selectedMember.billingGroup"
+                  :label="$t('adminTools.createBillingGroup')"
+                  color="primary"
+                  @click="showCreateBillingGroupDialog = true"
+                  icon="add"
+                />
+                <q-btn
+                  v-else
+                  :label="$t('adminTools.editBillingGroup')"
+                  color="secondary"
+                  @click="showEditBillingGroupDialog = true"
+                  icon="edit"
+                />
+              </div>
+            </div>
 
-            <div class="text-subtitle2 q-mb-sm">
+            <div v-if="selectedMember.billingGroup" class="text-subtitle2 q-mb-sm">
               {{ $t('adminTools.billingGroupHead') }}: {{ selectedMember.billingGroup?.head || $t('error.noValue') }}
             </div>
 
-            <div class="text-h6 q-mb-sm">
+            <div v-if="selectedMember.billingGroup" class="text-h6 q-mb-sm">
               {{ $t('adminTools.billingGroupMembers') }}
             </div>
 
             <q-table
+              v-if="selectedMember.billingGroup"
               :rows="selectedMember.billingGroup?.members || []"
               :columns="[
                 {
@@ -1425,6 +1445,12 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <create-billing-group-dialog
+      v-model="showCreateBillingGroupDialog"
+      :members="members"
+      @billing-group-created="onBillingGroupCreated"
+    />
   </div>
 </template>
 
@@ -1438,10 +1464,11 @@ import { mapGetters } from 'vuex';
 import { QForm } from 'quasar';
 import { MemberBillingInfo, MemberProfile, MemberState } from 'types/member';
 import { defineComponent } from 'vue';
+import CreateBillingGroupDialog from '@components/AdminTools/CreateBillingGroupDialog.vue';
 
 export default defineComponent({
   name: 'ManageMember',
-  components: { AccessList, SavedNotification },
+  components: { AccessList, SavedNotification, CreateBillingGroupDialog },
   mixins: [formMixin, formatMixin],
   props: {
     member: {
@@ -1504,6 +1531,8 @@ export default defineComponent({
       smsSendLoading: false,
       smsModalIsOpen: false,
       smsBody: '',
+      showCreateBillingGroupDialog: false,
+      showEditBillingGroupDialog: false,
     };
   },
   beforeMount() {
@@ -1685,6 +1714,10 @@ export default defineComponent({
       this.smsModalIsOpen = false;
       this.smsBody = '';
       this.smsSendLoading = false;
+    },
+    onBillingGroupCreated(billingGroupId: number) {
+      // Refresh the member data to show the new billing group
+      this.$emit('memberUpdated');
     },
     submitSmsModal() {
       this.smsSendLoading = true;

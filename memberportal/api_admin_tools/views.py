@@ -940,3 +940,349 @@ class ManageSettings(APIView):
 
         except ConstanceSetting.DoesNotExist as e:
             return Response(status=status.HTTP_404_NOT_FOUND)
+
+
+class BillingGroupManagement(APIView):
+    """
+    get: retrieves a list of all billing groups.
+    post: creates a new billing group.
+    """
+
+    permission_classes = (permissions.IsAdminUser,)
+
+    def get(self, request):
+        from profile.models import BillingGroup
+        
+        billing_groups = BillingGroup.objects.all()
+        
+        def get_billing_group(billing_group):
+            return {
+                "id": billing_group.id,
+                "name": billing_group.name,
+                "primary_member": {
+                    "id": billing_group.primary_member.user.id,
+                    "name": billing_group.primary_member.get_full_name(),
+                } if billing_group.primary_member else None,
+                "member_count": billing_group.members.count(),
+                "invite_count": billing_group.members_invites.count(),
+            }
+        
+        return Response(list(map(get_billing_group, billing_groups)))
+
+    def post(self, request):
+        from profile.models import BillingGroup, Profile
+        
+        body = request.data
+        
+        # Validate required fields
+        if not body.get("name"):
+            return Response(
+                {"success": False, "message": "Billing group name is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        # Check if billing group name already exists
+        if BillingGroup.objects.filter(name=body["name"]).exists():
+            return Response(
+                {"success": False, "message": "A billing group with this name already exists."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        
+        # Create the billing group
+        billing_group = BillingGroup.objects.create(
+            name=body["name"],
+            primary_member_id=body.get("primary_member_id"),
+        )
+        
+        # If a primary member was specified, add them to the billing group
+        if body.get("primary_member_id"):
+            try:
+                primary_member = Profile.objects.get(user_id=body["primary_member_id"])
+                primary_member.billing_group = billing_group
+                primary_member.save()
+            except Profile.DoesNotExist:
+                pass
+        
+        request.user.log_event(
+            f"Created billing group '{billing_group.name}'",
+            "admin",
+        )
+        
+        return Response({"success": True, "billing_group_id": billing_group.id})
+
+
+class BillingGroupDetail(APIView):
+    """
+    get: retrieves details of a specific billing group.
+    put: updates a billing group.
+    delete: deletes a billing group.
+    """
+
+    permission_classes = (permissions.IsAdminUser,)
+
+    def get(self, request, billing_group_id):
+        from profile.models import BillingGroup
+        
+        try:
+            billing_group = BillingGroup.objects.get(id=billing_group_id)
+        except BillingGroup.DoesNotExist:
+            return Response(
+                {"success": False, "message": "Billing group not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        
+        def get_member(member):
+            return {
+                "id": member.user.id,
+                "name": member.get_full_name(),
+                "email": member.user.email,
+                "state": member.state,
+            }
+        
+        def get_invite(invite):
+            return {
+                "id": invite.user.id,
+                "name": invite.get_full_name(),
+                "email": invite.user.email,
+                "state": invite.state,
+            }
+        
+        return Response({
+            "id": billing_group.id,
+            "name": billing_group.name,
+            "primary_member": get_member(billing_group.primary_member) if billing_group.primary_member else None,
+            "members": list(map(get_member, billing_group.members.all())),
+            "invites": list(map(get_invite, billing_group.members_invites.all())),
+        })
+
+    def put(self, request, billing_group_id):
+        from profile.models import BillingGroup, Profile
+        
+        try:
+            billing_group = BillingGroup.objects.get(id=billing_group_id)
+        except BillingGroup.DoesNotExist:
+            return Response(
+                {"success": False, "message": "Billing group not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        
+        body = request.data
+        
+        # Update name if provided
+        if body.get("name") and body["name"] != billing_group.name:
+            # Check if new name already exists
+            if BillingGroup.objects.filter(name=body["name"]).exclude(id=billing_group_id).exists():
+                return Response(
+                    {"success": False, "message": "A billing group with this name already exists."},
+                    status=status.HTTP_409_CONFLICT,
+                )
+            billing_group.name = body["name"]
+        
+        # Update primary member if provided
+        if "primary_member_id" in body:
+            if body["primary_member_id"]:
+                try:
+                    primary_member = Profile.objects.get(user_id=body["primary_member_id"])
+                    billing_group.primary_member = primary_member
+                except Profile.DoesNotExist:
+                    return Response(
+                        {"success": False, "message": "Primary member not found."},
+                        status=status.HTTP_404_NOT_FOUND,
+                    )
+            else:
+                billing_group.primary_member = None
+        
+        billing_group.save()
+        
+        request.user.log_event(
+            f"Updated billing group '{billing_group.name}'",
+            "admin",
+        )
+        
+        return Response({"success": True})
+
+    def delete(self, request, billing_group_id):
+        from profile.models import BillingGroup
+        
+        try:
+            billing_group = BillingGroup.objects.get(id=billing_group_id)
+        except BillingGroup.DoesNotExist:
+            return Response(
+                {"success": False, "message": "Billing group not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        
+        # Remove all members from the billing group
+        for member in billing_group.members.all():
+            member.billing_group = None
+            member.save()
+        
+        # Remove all invites from the billing group
+        for invite in billing_group.members_invites.all():
+            invite.billing_group_invite = None
+            invite.save()
+        
+        billing_group_name = billing_group.name
+        billing_group.delete()
+        
+        request.user.log_event(
+            f"Deleted billing group '{billing_group_name}'",
+            "admin",
+        )
+        
+        return Response({"success": True})
+
+
+class BillingGroupMemberManagement(APIView):
+    """
+    post: adds or removes members from a billing group.
+    """
+
+    permission_classes = (permissions.IsAdminUser,)
+
+    def post(self, request, billing_group_id):
+        from profile.models import BillingGroup, Profile
+        
+        try:
+            billing_group = BillingGroup.objects.get(id=billing_group_id)
+        except BillingGroup.DoesNotExist:
+            return Response(
+                {"success": False, "message": "Billing group not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        
+        body = request.data
+        action = body.get("action")  # "add" or "remove"
+        member_id = body.get("member_id")
+        
+        if not action or not member_id:
+            return Response(
+                {"success": False, "message": "Action and member_id are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        try:
+            member = Profile.objects.get(user_id=member_id)
+        except Profile.DoesNotExist:
+            return Response(
+                {"success": False, "message": "Member not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        
+        if action == "add":
+            # Remove from any existing billing group first
+            if member.billing_group:
+                member.billing_group = None
+                member.save()
+            
+            # Add to this billing group
+            member.billing_group = billing_group
+            member.save()
+            
+            request.user.log_event(
+                f"Added {member.get_full_name()} to billing group '{billing_group.name}'",
+                "admin",
+            )
+            
+        elif action == "remove":
+            if member.billing_group == billing_group:
+                member.billing_group = None
+                member.save()
+                
+                request.user.log_event(
+                    f"Removed {member.get_full_name()} from billing group '{billing_group.name}'",
+                    "admin",
+                )
+            else:
+                return Response(
+                    {"success": False, "message": "Member is not in this billing group."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        
+        else:
+            return Response(
+                {"success": False, "message": "Invalid action. Use 'add' or 'remove'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        return Response({"success": True})
+
+
+class BillingGroupInviteManagement(APIView):
+    """
+    post: sends or cancels billing group invites.
+    """
+
+    permission_classes = (permissions.IsAdminUser,)
+
+    def post(self, request, billing_group_id):
+        from profile.models import BillingGroup, Profile
+        
+        try:
+            billing_group = BillingGroup.objects.get(id=billing_group_id)
+        except BillingGroup.DoesNotExist:
+            return Response(
+                {"success": False, "message": "Billing group not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        
+        body = request.data
+        action = body.get("action")  # "invite" or "cancel"
+        member_id = body.get("member_id")
+        
+        if not action or not member_id:
+            return Response(
+                {"success": False, "message": "Action and member_id are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        try:
+            member = Profile.objects.get(user_id=member_id)
+        except Profile.DoesNotExist:
+            return Response(
+                {"success": False, "message": "Member not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        
+        if action == "invite":
+            # Remove from any existing billing group invite first
+            if member.billing_group_invite:
+                member.billing_group_invite = None
+                member.save()
+            
+            # Send invite to this billing group
+            member.billing_group_invite = billing_group
+            member.save()
+            
+            # Send email notification
+            subject = f"You've been invited to join billing group '{billing_group.name}'"
+            message = f"You have been invited to join the billing group '{billing_group.name}'. Please log into your account to accept or decline this invitation."
+            member.user.email_notification(subject, message)
+            
+            request.user.log_event(
+                f"Invited {member.get_full_name()} to billing group '{billing_group.name}'",
+                "admin",
+            )
+            
+        elif action == "cancel":
+            if member.billing_group_invite == billing_group:
+                member.billing_group_invite = None
+                member.save()
+                
+                request.user.log_event(
+                    f"Cancelled invite for {member.get_full_name()} to billing group '{billing_group.name}'",
+                    "admin",
+                )
+            else:
+                return Response(
+                    {"success": False, "message": "Member is not invited to this billing group."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        
+        else:
+            return Response(
+                {"success": False, "message": "Invalid action. Use 'invite' or 'cancel'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        return Response({"success": True})

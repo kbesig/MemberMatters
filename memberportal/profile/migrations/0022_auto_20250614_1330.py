@@ -7,26 +7,38 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('profile', '0021_auto_20250613_1344'),
+        ("profile", "0021_auto_20250613_1344"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='collective',
-            name='invites',
+            model_name="collective",
+            name="invites",
         ),
         migrations.RemoveField(
-            model_name='collective',
-            name='members',
+            model_name="collective",
+            name="members",
         ),
         migrations.AddField(
-            model_name='profile',
-            name='collective',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='members', to='profile.collective'),
+            model_name="profile",
+            name="collective",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="members",
+                to="profile.collective",
+            ),
         ),
         migrations.AddField(
-            model_name='profile',
-            name='collective_invite',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='members_invites', to='profile.collective'),
+            model_name="profile",
+            name="collective_invite",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="members_invites",
+                to="profile.collective",
+            ),
         ),
     ]

@@ -7,35 +7,53 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('profile', '0019_auto_20250613_1323'),
+        ("profile", "0019_auto_20250613_1323"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='profile',
-            name='collective',
+            model_name="profile",
+            name="collective",
         ),
         migrations.RemoveField(
-            model_name='profile',
-            name='collective_invite',
+            model_name="profile",
+            name="collective_invite",
         ),
         migrations.RemoveField(
-            model_name='profile',
-            name='collective_primary_member',
+            model_name="profile",
+            name="collective_primary_member",
         ),
         migrations.AddField(
-            model_name='collective',
-            name='invites',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='collective_invite', to='profile.profile'),
+            model_name="collective",
+            name="invites",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="collective_invite",
+                to="profile.profile",
+            ),
         ),
         migrations.AddField(
-            model_name='collective',
-            name='members',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='collective', to='profile.profile'),
+            model_name="collective",
+            name="members",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="collective",
+                to="profile.profile",
+            ),
         ),
         migrations.AddField(
-            model_name='collective',
-            name='primary_member',
-            field=models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='collective_primary_member', to='profile.profile'),
+            model_name="collective",
+            name="primary_member",
+            field=models.OneToOneField(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="collective_primary_member",
+                to="profile.profile",
+            ),
         ),
     ]

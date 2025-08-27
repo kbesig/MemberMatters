@@ -6,18 +6,26 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api_admin_tools', '0012_subscriptionaddon'),
+        ("api_admin_tools", "0012_subscriptionaddon"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='paymentplan',
-            name='interval',
-            field=models.CharField(choices=[('month', 'month'), ('week', 'week'), ('day', 'day')], max_length=10),
+            model_name="paymentplan",
+            name="interval",
+            field=models.CharField(
+                choices=[("month", "month"), ("week", "week"), ("day", "day")],
+                max_length=10,
+            ),
         ),
         migrations.AlterField(
-            model_name='subscriptionaddon',
-            name='interval',
-            field=models.CharField(choices=[('month', 'month'), ('week', 'week'), ('day', 'day')], default='month', max_length=10, verbose_name='Billing interval'),
+            model_name="subscriptionaddon",
+            name="interval",
+            field=models.CharField(
+                choices=[("month", "month"), ("week", "week"), ("day", "day")],
+                default="month",
+                max_length=10,
+                verbose_name="Billing interval",
+            ),
         ),
     ]

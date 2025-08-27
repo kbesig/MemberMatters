@@ -7,17 +7,23 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('profile', '0018_auto_20250613_1208'),
+        ("profile", "0018_auto_20250613_1208"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='collective',
-            name='primary_member',
+            model_name="collective",
+            name="primary_member",
         ),
         migrations.AddField(
-            model_name='profile',
-            name='collective_primary_member',
-            field=models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='collective_primary_member', to='profile.collective'),
+            model_name="profile",
+            name="collective_primary_member",
+            field=models.OneToOneField(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="collective_primary_member",
+                to="profile.collective",
+            ),
         ),
     ]

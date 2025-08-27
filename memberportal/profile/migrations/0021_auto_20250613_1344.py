@@ -6,26 +6,33 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('profile', '0020_auto_20250613_1335'),
+        ("profile", "0020_auto_20250613_1335"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='collective',
-            name='invites',
+            model_name="collective",
+            name="invites",
         ),
         migrations.AddField(
-            model_name='collective',
-            name='invites',
-            field=models.ManyToManyField(blank=True, null=True, related_name='collective_invite', to='profile.Profile'),
+            model_name="collective",
+            name="invites",
+            field=models.ManyToManyField(
+                blank=True,
+                null=True,
+                related_name="collective_invite",
+                to="profile.Profile",
+            ),
         ),
         migrations.RemoveField(
-            model_name='collective',
-            name='members',
+            model_name="collective",
+            name="members",
         ),
         migrations.AddField(
-            model_name='collective',
-            name='members',
-            field=models.ManyToManyField(blank=True, null=True, related_name='collective', to='profile.Profile'),
+            model_name="collective",
+            name="members",
+            field=models.ManyToManyField(
+                blank=True, null=True, related_name="collective", to="profile.Profile"
+            ),
         ),
     ]

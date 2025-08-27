@@ -8,42 +8,63 @@ import django_prometheus.models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('profile', '0022_auto_20250614_1330'),
+        ("profile", "0022_auto_20250614_1330"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='BillingGroup',
+            name="BillingGroup",
             fields=[
-                ('id', models.AutoField(primary_key=True, serialize=False)),
-                ('name', models.CharField(max_length=255)),
+                ("id", models.AutoField(primary_key=True, serialize=False)),
+                ("name", models.CharField(max_length=255)),
             ],
-            bases=(django_prometheus.models.ExportModelOperationsMixin('billing_group'), models.Model),
+            bases=(
+                django_prometheus.models.ExportModelOperationsMixin("billing_group"),
+                models.Model,
+            ),
         ),
         migrations.RemoveField(
-            model_name='profile',
-            name='collective',
+            model_name="profile",
+            name="collective",
         ),
         migrations.RemoveField(
-            model_name='profile',
-            name='collective_invite',
+            model_name="profile",
+            name="collective_invite",
         ),
         migrations.DeleteModel(
-            name='Collective',
+            name="Collective",
         ),
         migrations.AddField(
-            model_name='billinggroup',
-            name='primary_member',
-            field=models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='billing_group_primary_member', to='profile.profile'),
+            model_name="billinggroup",
+            name="primary_member",
+            field=models.OneToOneField(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="billing_group_primary_member",
+                to="profile.profile",
+            ),
         ),
         migrations.AddField(
-            model_name='profile',
-            name='billing_group',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='members', to='profile.billinggroup'),
+            model_name="profile",
+            name="billing_group",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="members",
+                to="profile.billinggroup",
+            ),
         ),
         migrations.AddField(
-            model_name='profile',
-            name='billing_group_invite',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='members_invites', to='profile.billinggroup'),
+            model_name="profile",
+            name="billing_group_invite",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="members_invites",
+                to="profile.billinggroup",
+            ),
         ),
     ]

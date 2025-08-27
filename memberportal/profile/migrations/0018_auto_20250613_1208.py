@@ -8,37 +8,52 @@ import django_prometheus.models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('profile', '0017_alter_log_logtype'),
+        ("profile", "0017_alter_log_logtype"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Collective',
+            name="Collective",
             fields=[
-                ('id', models.AutoField(primary_key=True, serialize=False)),
-                ('name', models.CharField(max_length=255)),
-                ('primary_member', models.IntegerField(null=True)),
+                ("id", models.AutoField(primary_key=True, serialize=False)),
+                ("name", models.CharField(max_length=255)),
+                ("primary_member", models.IntegerField(null=True)),
             ],
-            bases=(django_prometheus.models.ExportModelOperationsMixin('collective'), models.Model),
+            bases=(
+                django_prometheus.models.ExportModelOperationsMixin("collective"),
+                models.Model,
+            ),
         ),
         migrations.AddField(
-            model_name='user',
-            name='collective_invite',
+            model_name="user",
+            name="collective_invite",
             field=models.IntegerField(default=0),
         ),
         migrations.AddField(
-            model_name='user',
-            name='collective_member',
+            model_name="user",
+            name="collective_member",
             field=models.IntegerField(default=0),
         ),
         migrations.AddField(
-            model_name='profile',
-            name='collective',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='members', to='profile.collective'),
+            model_name="profile",
+            name="collective",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="members",
+                to="profile.collective",
+            ),
         ),
         migrations.AddField(
-            model_name='profile',
-            name='collective_invite',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='members_invites', to='profile.collective'),
+            model_name="profile",
+            name="collective_invite",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="members_invites",
+                to="profile.collective",
+            ),
         ),
     ]

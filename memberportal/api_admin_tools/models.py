@@ -81,21 +81,30 @@ class SubscriptionAddon(ExportModelOperationsMixin("subscription-addon"), models
     id = models.AutoField(primary_key=True)
     name = models.CharField("Name", max_length=100)
     description = models.CharField("Description", max_length=250, blank=True)
-    stripe_price_id = models.CharField("Stripe Price ID", max_length=100, unique=True, blank=True)
-    stripe_product_id = models.CharField("Stripe Product ID", max_length=100, blank=True)
+    stripe_price_id = models.CharField(
+        "Stripe Price ID", max_length=100, unique=True, blank=True
+    )
+    stripe_product_id = models.CharField(
+        "Stripe Product ID", max_length=100, blank=True
+    )
     addon_type = models.CharField("Add-on Type", max_length=50, choices=ADDON_TYPES)
     visible = models.BooleanField("Is this add-on visible to members?", default=True)
     currency = models.CharField("Currency", max_length=3, default="aud")
     cost = models.IntegerField("Cost in cents")
     interval_count = models.IntegerField("Billing interval count", default=1)
-    interval = models.CharField("Billing interval", max_length=10, choices=PaymentPlan.BILLING_PERIODS, default="month")
+    interval = models.CharField(
+        "Billing interval",
+        max_length=10,
+        choices=PaymentPlan.BILLING_PERIODS,
+        default="month",
+    )
     max_quantity = models.IntegerField("Maximum quantity allowed", default=10)
     min_quantity = models.IntegerField("Minimum quantity required", default=1)
-    
+
     # Stripe sync status
     stripe_synced = models.BooleanField("Synced with Stripe", default=False)
     last_stripe_sync = models.DateTimeField("Last Stripe Sync", null=True, blank=True)
-    
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -125,22 +134,19 @@ class SubscriptionAddon(ExportModelOperationsMixin("subscription-addon"), models
         import stripe
         from constance import config
         from django.utils import timezone
-        
+
         if not config.ENABLE_STRIPE:
             return False, "Stripe is not enabled"
-        
+
         try:
             stripe.api_key = config.STRIPE_SECRET_KEY
-            
+
             # Create or get product
             if not self.stripe_product_id:
                 product = stripe.Product.create(
                     name=self.name,
                     description=self.description,
-                    metadata={
-                        "addon_type": self.addon_type,
-                        "django_id": str(self.id)
-                    }
+                    metadata={"addon_type": self.addon_type, "django_id": str(self.id)},
                 )
                 self.stripe_product_id = product.id
             else:
@@ -149,34 +155,64 @@ class SubscriptionAddon(ExportModelOperationsMixin("subscription-addon"), models
                     self.stripe_product_id,
                     name=self.name,
                     description=self.description,
-                    metadata={
-                        "addon_type": self.addon_type,
-                        "django_id": str(self.id)
-                    }
+                    metadata={"addon_type": self.addon_type, "django_id": str(self.id)},
                 )
-            
-            # Create price
-            price = stripe.Price.create(
-                unit_amount=self.cost,
-                currency=self.currency.lower(),
-                recurring={
-                    "interval": self.interval,
-                    "interval_count": self.interval_count,
-                },
-                product=self.stripe_product_id,
-                metadata={
-                    "addon_type": self.addon_type,
-                    "django_id": str(self.id)
-                }
-            )
-            
-            self.stripe_price_id = price.id
+
+            # Only create price if one doesn't exist
+            if not self.stripe_price_id:
+                price = stripe.Price.create(
+                    unit_amount=self.cost,
+                    currency=self.currency.lower(),
+                    recurring={
+                        "interval": self.interval,
+                        "interval_count": self.interval_count,
+                    },
+                    product=self.stripe_product_id,
+                    metadata={"addon_type": self.addon_type, "django_id": str(self.id)},
+                )
+
+                self.stripe_price_id = price.id
+
             self.stripe_synced = True
             self.last_stripe_sync = timezone.now()
             self.save()
-            
+
             return True, "Successfully created Stripe product and price"
-            
+
+        except stripe.error.StripeError as e:
+            return False, f"Stripe error: {str(e)}"
+        except Exception as e:
+            return False, f"Error: {str(e)}"
+
+    def update_stripe_product(self):
+        """Update existing Stripe product (name, description, metadata)"""
+        import stripe
+        from constance import config
+        from django.utils import timezone
+
+        if not config.ENABLE_STRIPE:
+            return False, "Stripe is not enabled"
+
+        if not self.stripe_product_id:
+            return False, "No Stripe product ID found"
+
+        try:
+            stripe.api_key = config.STRIPE_SECRET_KEY
+
+            # Update existing product
+            stripe.Product.modify(
+                self.stripe_product_id,
+                name=self.name,
+                description=self.description,
+                metadata={"addon_type": self.addon_type, "django_id": str(self.id)},
+            )
+
+            self.stripe_synced = True
+            self.last_stripe_sync = timezone.now()
+            self.save()
+
+            return True, "Successfully updated Stripe product"
+
         except stripe.error.StripeError as e:
             return False, f"Stripe error: {str(e)}"
         except Exception as e:
@@ -187,13 +223,13 @@ class SubscriptionAddon(ExportModelOperationsMixin("subscription-addon"), models
         import stripe
         from constance import config
         from django.utils import timezone
-        
+
         if not config.ENABLE_STRIPE:
             return False, "Stripe is not enabled"
-        
+
         try:
             stripe.api_key = config.STRIPE_SECRET_KEY
-            
+
             # Create new price (Stripe doesn't allow modifying existing prices)
             price = stripe.Price.create(
                 unit_amount=self.cost,
@@ -203,12 +239,9 @@ class SubscriptionAddon(ExportModelOperationsMixin("subscription-addon"), models
                     "interval_count": self.interval_count,
                 },
                 product=self.stripe_product_id,
-                metadata={
-                    "addon_type": self.addon_type,
-                    "django_id": str(self.id)
-                }
+                metadata={"addon_type": self.addon_type, "django_id": str(self.id)},
             )
-            
+
             # Archive old price if it exists
             if self.stripe_price_id:
                 try:
@@ -217,14 +250,14 @@ class SubscriptionAddon(ExportModelOperationsMixin("subscription-addon"), models
                     old_price.save()
                 except:
                     pass  # Price might not exist
-            
+
             self.stripe_price_id = price.id
             self.stripe_synced = True
             self.last_stripe_sync = timezone.now()
             self.save()
-            
+
             return True, "Successfully updated Stripe price"
-            
+
         except stripe.error.StripeError as e:
             return False, f"Stripe error: {str(e)}"
         except Exception as e:
@@ -234,13 +267,13 @@ class SubscriptionAddon(ExportModelOperationsMixin("subscription-addon"), models
         """Delete Stripe product and price"""
         import stripe
         from constance import config
-        
+
         if not config.ENABLE_STRIPE:
             return False, "Stripe is not enabled"
-        
+
         try:
             stripe.api_key = config.STRIPE_SECRET_KEY
-            
+
             # Archive price
             if self.stripe_price_id:
                 try:
@@ -249,7 +282,7 @@ class SubscriptionAddon(ExportModelOperationsMixin("subscription-addon"), models
                     price.save()
                 except:
                     pass
-            
+
             # Archive product
             if self.stripe_product_id:
                 try:
@@ -258,14 +291,65 @@ class SubscriptionAddon(ExportModelOperationsMixin("subscription-addon"), models
                     product.save()
                 except:
                     pass
-            
+
             return True, "Successfully archived Stripe objects"
-            
+
         except stripe.error.StripeError as e:
             return False, f"Stripe error: {str(e)}"
         except Exception as e:
             return False, f"Error: {str(e)}"
 
+    def check_existing_stripe_product(self):
+        """Check if a similar Stripe product already exists"""
+        import stripe
+        from constance import config
+
+        if not config.ENABLE_STRIPE:
+            return None, "Stripe is not enabled"
+
+        try:
+            stripe.api_key = config.STRIPE_SECRET_KEY
+
+            # Search for products with similar metadata
+            products = stripe.Product.list(limit=100, active=True)
+
+            for product in products.data:
+                if product.metadata.get("django_id") == str(self.id) or (
+                    product.name == self.name
+                    and product.metadata.get("addon_type") == self.addon_type
+                ):
+                    return product, "Found existing product"
+
+            return None, "No existing product found"
+
+        except stripe.error.StripeError as e:
+            return None, f"Stripe error: {str(e)}"
+        except Exception as e:
+            return None, f"Error: {str(e)}"
+
+    def clean(self):
+        """Validate the model before saving"""
+        from django.core.exceptions import ValidationError
+
+        # Check for duplicate names within the same addon type
+        if self.pk:
+            # Exclude self when checking for duplicates
+            existing = SubscriptionAddon.objects.filter(
+                name=self.name, addon_type=self.addon_type
+            ).exclude(pk=self.pk)
+        else:
+            existing = SubscriptionAddon.objects.filter(
+                name=self.name, addon_type=self.addon_type
+            )
+
+        if existing.exists():
+            raise ValidationError(
+                {
+                    "name": f'An add-on with name "{self.name}" and type "{self.get_addon_type_display()}" already exists.'
+                }
+            )
+
     class Meta:
         verbose_name = "Subscription Add-on"
         verbose_name_plural = "Subscription Add-ons"
+        unique_together = [["name", "addon_type"]]

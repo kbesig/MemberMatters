@@ -6,18 +6,18 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('profile', '0023_rename_collective_to_billing_group'),
+        ("profile", "0023_rename_collective_to_billing_group"),
     ]
 
     operations = [
         migrations.RenameField(
-            model_name='user',
-            old_name='collective_invite',
-            new_name='billing_group_invite',
+            model_name="user",
+            old_name="collective_invite",
+            new_name="billing_group_invite",
         ),
         migrations.RenameField(
-            model_name='user',
-            old_name='collective_member',
-            new_name='billing_group_member',
+            model_name="user",
+            old_name="collective_member",
+            new_name="billing_group_member",
         ),
-    ] 
+    ]

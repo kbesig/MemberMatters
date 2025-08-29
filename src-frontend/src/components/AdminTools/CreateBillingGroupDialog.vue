@@ -10,7 +10,9 @@
           <q-input
             v-model="form.name"
             :label="$t('adminTools.billingGroupName')"
-            :rules="[val => !!val || $t('adminTools.billingGroupNameRequired')]"
+            :rules="[
+              (val) => !!val || $t('adminTools.billingGroupNameRequired'),
+            ]"
             outlined
             dense
           />
@@ -83,7 +85,7 @@ export default defineComponent({
       },
     },
     memberOptions() {
-      return this.members.map(member => ({
+      return this.members.map((member) => ({
         id: member.id,
         name: member.name.full,
       }));
@@ -92,16 +94,19 @@ export default defineComponent({
   methods: {
     async createBillingGroup() {
       this.loading = true;
-      
+
       try {
-        const response = await this.$axios.post('/api/admin/billing-groups/', this.form);
-        
+        const response = await this.$axios.post(
+          '/api/admin/billing-groups/',
+          this.form
+        );
+
         if (response.data.success) {
           this.$q.notify({
             type: 'positive',
             message: this.$t('adminTools.billingGroupCreated'),
           });
-          
+
           this.$emit('billing-group-created', response.data.billing_group_id);
           this.closeDialog();
         } else {
@@ -119,7 +124,7 @@ export default defineComponent({
         this.loading = false;
       }
     },
-    
+
     closeDialog() {
       this.form = {
         name: '',
@@ -129,4 +134,4 @@ export default defineComponent({
     },
   },
 });
-</script> 
+</script>

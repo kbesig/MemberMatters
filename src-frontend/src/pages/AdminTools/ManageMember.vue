@@ -61,8 +61,8 @@ export default defineComponent({
           this.members = [];
           this.getMembers();
         }
-      }
-    }
+      },
+    },
   },
   methods: {
     getMembers() {

@@ -414,29 +414,34 @@
           <div class="column q-gutter-y-sm full-width">
             <div class="row justify-between items-center q-mb-md">
               <h6 class="q-mt-md q-mb-sm">
-                {{ selectedMember.billingGroup?.name || $t('adminTools.noBillingGroup') }}
+                {{
+                  selectedMember.billingGroup?.name ||
+                  $t('adminTools.noBillingGroup')
+                }}
               </h6>
-              
+
               <div class="row q-gutter-sm">
                 <q-btn
                   v-if="!selectedMember.billingGroup"
                   :label="$t('adminTools.createBillingGroup')"
                   color="primary"
                   @click="showCreateBillingGroupDialog = true"
-                  icon="add"
                 />
                 <q-btn
                   v-else
                   :label="$t('adminTools.editBillingGroup')"
                   color="secondary"
                   @click="showEditBillingGroupDialog = true"
-                  icon="edit"
                 />
               </div>
             </div>
 
-            <div v-if="selectedMember.billingGroup" class="text-subtitle2 q-mb-sm">
-              {{ $t('adminTools.billingGroupHead') }}: {{ selectedMember.billingGroup?.head || $t('error.noValue') }}
+            <div
+              v-if="selectedMember.billingGroup"
+              class="text-subtitle2 q-mb-sm"
+            >
+              {{ $t('adminTools.billingGroupHead') }}:
+              {{ selectedMember.billingGroup?.head || $t('error.noValue') }}
             </div>
 
             <div v-if="selectedMember.billingGroup" class="text-h6 q-mb-sm">
@@ -450,9 +455,9 @@
                 {
                   name: 'name',
                   label: $t('adminTools.billingGroupMemberName'),
-                  field: row => row.name,
+                  field: (row) => row.name,
                   sortable: true,
-                }
+                },
               ]"
               row-key="id"
               v-model:pagination="pagination"
@@ -462,7 +467,12 @@
               <template v-slot:body="props">
                 <q-tr :props="props">
                   <q-td key="name" :props="props">
-                    <router-link :to="{ name: 'manageMember', params: { memberId: props.row.id }}">
+                    <router-link
+                      :to="{
+                        name: 'manageMember',
+                        params: { memberId: props.row.id },
+                      }"
+                    >
                       {{ props.row.name }}
                     </router-link>
                   </q-td>
@@ -477,11 +487,18 @@
                     <q-list dense>
                       <q-item>
                         <q-item-section>
-                          <q-item-label>{{ $t('adminTools.billingGroupMemberName') }}</q-item-label>
+                          <q-item-label>{{
+                            $t('adminTools.billingGroupMemberName')
+                          }}</q-item-label>
                         </q-item-section>
                         <q-item-section side>
                           <q-item-label caption>
-                            <router-link :to="{ name: 'manageMember', params: { memberId: props.row.id }}">
+                            <router-link
+                              :to="{
+                                name: 'manageMember',
+                                params: { memberId: props.row.id },
+                              }"
+                            >
                               {{ props.row.name }}
                             </router-link>
                           </q-item-label>

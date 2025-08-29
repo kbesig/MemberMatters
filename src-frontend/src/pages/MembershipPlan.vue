@@ -70,6 +70,14 @@
           </q-card>
         </div>
 
+        <!-- Billing Group Manager -->
+        <div class="q-mb-md full-width">
+          <div class="text-h6 q-py-md">
+            {{ $t('billing.billingGroup') }}
+          </div>
+          <billing-group-manager />
+        </div>
+
         <q-btn
           v-if="subscriptionStatus === 'active'"
           :disable="disableButton"
@@ -99,6 +107,7 @@ import SelectTier from '@components/Billing/SelectTier.vue';
 import SelectedTier from '@components/Billing/SelectedTier.vue';
 import SignupRequiredSteps from '@components/Billing/SignupRequiredSteps.vue';
 import MemberBucksManageBilling from 'components/MemberBucksManageBilling.vue';
+import BillingGroupManager from '@components/Billing/BillingGroupManager.vue';
 
 export default defineComponent({
   name: 'MembershipTierPage',
@@ -107,6 +116,7 @@ export default defineComponent({
     SelectTier,
     SelectedTier,
     SignupRequiredSteps,
+    BillingGroupManager,
   },
   data() {
     return {

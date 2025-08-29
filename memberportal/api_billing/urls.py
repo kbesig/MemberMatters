@@ -67,4 +67,19 @@ urlpatterns = [
         views.StripeWebhook.as_view(),
         name="StripeWebhook",
     ),
+    path(
+        "api/billing/billing-group/",
+        views.MemberBillingGroupManagement.as_view(),
+        name="MemberBillingGroupManagement",
+    ),
+    path(
+        "api/billing/billing-group/members/",
+        views.MemberBillingGroupMemberManagement.as_view(),
+        name="MemberBillingGroupMemberManagement",
+    ),
+    path(
+        "api/billing/billing-group/invite/",
+        views.MemberBillingGroupInviteResponse.as_view(),
+        name="MemberBillingGroupInviteResponse",
+    ),
 ]

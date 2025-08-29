@@ -1,6 +1,8 @@
 // This is an object containing every piece of user visible text used for localisation (currently
 // only Australian English is supported)
 
+import Billing from 'src/pages/Billing.vue';
+
 export default {
   menuLink: {
     rootIndex: 'Dashboard',
@@ -509,6 +511,9 @@ export default {
     billingGroupCreated: 'Billing group created successfully',
     billingGroupUpdated: 'Billing group updated successfully',
     billingGroupDeleted: 'Billing group deleted successfully',
+    deleteBillingGroupConfirm:
+      'Are you sure you want to delete the billing group "{name}"?',
+    deleteBillingGroupWarning: 'This action cannot be undone.',
     addMemberToBillingGroup: 'Add Member to Billing Group',
     removeMemberFromBillingGroup: 'Remove Member from Billing Group',
     inviteMemberToBillingGroup: 'Invite Member to Billing Group',
@@ -523,6 +528,22 @@ export default {
     inviteCount: 'Invite Count',
     selectPrimaryMember: 'Select Primary Member',
     billingGroupActions: 'Billing Group Actions',
+    // Member-facing billing group translations
+    pendingInvite: 'Pending Invitation',
+    invitedToGroup: 'You have been invited to join the billing group "{name}"',
+    members: 'Members',
+    memberName: 'Member Name',
+    memberEmail: 'Member Email',
+    addMember: 'Add Member',
+    memberOfGroup: 'You are a member of this billing group',
+    groupName: 'Group Name',
+    groupNameRequired: 'Group name is required',
+    emailRequired: 'Email is required',
+    groupCreated: 'Billing group created successfully',
+    memberAdded: 'Member added successfully',
+    memberRemoved: 'Member removed successfully',
+    inviteAccepted: 'Invitation accepted successfully',
+    inviteDeclined: 'Invitation declined successfully',
     button: {
       cancel: 'Cancel',
       create: 'Create',
@@ -531,6 +552,11 @@ export default {
       save: 'Save',
       send: 'Send',
       select: 'Select',
+      accept: 'Accept',
+      decline: 'Decline',
+      add: 'Add',
+      remove: 'Remove',
+      actions: 'Actions',
     },
   },
   doors: {
@@ -690,5 +716,26 @@ export default {
     error:
       'There was a problem verifying your email address. We just sent you another link so please try again.',
     success: 'Your email was verified. You will be logged in shortly.',
+  },
+  billing: {
+    billingGroup: 'Billing Group',
+    members: 'Group Members',
+    deleteBillingGroup: 'Delete Billing Group?',
+    deleteBillingGroupConfirm:
+      'Are you sure you want to delete this billing group?',
+    deleteBillingGroupWarning: 'This action cannot be undone.',
+    groupName: 'Billing Group Name',
+    addMember: 'Invite someone to your billing group',
+    memberEmail: 'Email',
+    button: {
+      submit: 'Submit',
+      cancel: 'Cancel',
+      remove: 'Remove Member',
+      addMember: 'Invite Member',
+      deleteBillingGroup: 'Delete Billing Group',
+      deleteBillingGroupConfirm: 'Delete',
+      create: 'Create Billing Group',
+      add: 'Invite Member',
+    },
   },
 };

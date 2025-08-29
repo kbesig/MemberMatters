@@ -53,11 +53,61 @@
             flat
             bordered
           >
+            <template v-slot:body-cell-status="props">
+              <q-td :props="props">
+                <q-chip
+                  :color="
+                    props.row.status === 'member' ? 'positive' : 'warning'
+                  "
+                  :label="
+                    props.row.status === 'member'
+                      ? $t('billing.statusMember')
+                      : $t('billing.statusInvited')
+                  "
+                  text-color="white"
+                  size="sm"
+                />
+              </q-td>
+            </template>
+            <template v-slot:body-cell-locked_pricing="props">
+              <q-td :props="props">
+                <div
+                  v-if="
+                    props.row.locked_addon_pricing &&
+                    props.row.locked_addon_pricing.length > 0
+                  "
+                >
+                  <div
+                    v-for="addon in props.row.locked_addon_pricing"
+                    :key="addon.addon_id"
+                    class="q-mb-xs"
+                  >
+                    <q-chip
+                      size="sm"
+                      color="primary"
+                      text-color="white"
+                      :label="`${addon.addon_name}: ${addon.locked_pricing.cost_display}/${addon.locked_pricing.interval}`"
+                    />
+                    <div class="text-caption text-grey-6">
+                      {{ $t('billing.lockedOn') }}:
+                      {{ formatDate(addon.locked_pricing.date_locked) }}
+                    </div>
+                  </div>
+                </div>
+                <div v-else class="text-grey-6">
+                  {{ $t('billing.noLockedPricing') }}
+                </div>
+              </q-td>
+            </template>
             <template v-slot:body-cell-actions="props">
               <q-td :props="props">
                 <q-btn
                   v-if="props.row.id !== profile.id"
-                  :label="$t('billing.button.remove')"
+                  :label="
+                    props.row.status === 'member'
+                      ? $t('billing.button.remove')
+                      : $t('billing.button.cancelInvite')
+                  "
                   color="negative"
                   size="sm"
                   @click="removeMember(props.row)"
@@ -69,7 +119,7 @@
 
           <div class="q-mt-md row q-gutter-sm">
             <q-btn
-              :label="$t('billing.button.addMember')"
+              :label="$t('billing.button.inviteMember')"
               color="primary"
               @click="showAddMemberDialog = true"
             />
@@ -127,11 +177,11 @@
       </q-card>
     </q-dialog>
 
-    <!-- Add Member Dialog -->
+    <!-- Invite Member Dialog -->
     <q-dialog v-model="showAddMemberDialog" persistent>
       <q-card style="min-width: 400px">
         <q-card-section>
-          <div class="text-h6">{{ $t('billing.addMember') }}</div>
+          <div class="text-h6">{{ $t('billing.inviteMember') }}</div>
         </q-card-section>
 
         <q-card-section>
@@ -237,6 +287,18 @@ export default defineComponent({
           sortable: true,
         },
         {
+          name: 'status',
+          label: this.$t('billing.memberStatus'),
+          field: 'status',
+          sortable: true,
+        },
+        {
+          name: 'locked_pricing',
+          label: this.$t('billing.lockedAddonPricing'),
+          field: 'locked_addon_pricing',
+          sortable: false,
+        },
+        {
           name: 'actions',
           label: this.$t('billing.button.actions'),
           field: 'actions',
@@ -255,6 +317,12 @@ export default defineComponent({
     },
   },
   methods: {
+    formatDate(dateString) {
+      if (!dateString) return '';
+      const date = new Date(dateString);
+      return date.toLocaleDateString();
+    },
+
     async loadBillingGroupInfo() {
       try {
         const response = await this.$axios.get('/api/billing/billing-group/');

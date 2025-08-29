@@ -912,10 +912,13 @@ class ManageSettings(APIView):
         if setting_key:
             try:
                 setting = ConstanceSetting.objects.get(key=setting_key)
-                return Response(self.get_setting(setting))
+                return Response({"success": True, **self.get_setting(setting)})
 
             except ConstanceSetting.DoesNotExist as e:
-                return Response(status=status.HTTP_404_NOT_FOUND)
+                return Response(
+                    {"success": False, "message": "Setting not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
 
         else:
             settings = []
@@ -936,10 +939,15 @@ class ManageSettings(APIView):
             setting.value = body["value"]
             setting.save()
 
-            return Response(self.get_setting(setting))
+            return Response({"success": True, **self.get_setting(setting)})
 
-        except ConstanceSetting.DoesNotExist as e:
-            return Response(status=status.HTTP_404_NOT_FOUND)
+        except ConstanceSetting.DoesNotExist:
+            # Create the setting if it doesn't exist
+            setting = ConstanceSetting.objects.create(
+                key=setting_key, value=body["value"]
+            )
+
+            return Response({"success": True, **self.get_setting(setting)})
 
 
 class BillingGroupManagement(APIView):
@@ -1240,6 +1248,96 @@ class BillingGroupInviteManagement(APIView):
 
     permission_classes = (permissions.IsAdminUser,)
 
+    def _lock_addon_pricing_for_invited_member(
+        self, member_profile, billing_group, requesting_user
+    ):
+        """
+        Lock in the current addon pricing for an invited billing group member.
+        This captures the current additional member addon pricing when someone
+        is invited to a billing group.
+        """
+        from profile.models import BillingGroupMemberAddon
+        from api_admin_tools.models import SubscriptionAddon
+
+        try:
+            # Get the current additional member addon setting
+            current_addon_id = getattr(config, "CURRENT_ADDITIONAL_MEMBER_ADDON", None)
+
+            # Handle empty string or None values
+            if current_addon_id and str(current_addon_id).strip():
+                try:
+                    current_addon = SubscriptionAddon.objects.get(
+                        id=int(current_addon_id),
+                        addon_type="additional_member",
+                        visible=True,
+                    )
+
+                    # Create the locked pricing record
+                    BillingGroupMemberAddon.objects.get_or_create(
+                        billing_group=billing_group,
+                        member=member_profile,
+                        addon=current_addon,
+                        defaults={
+                            "locked_cost": current_addon.cost,
+                            "locked_currency": current_addon.currency,
+                            "locked_interval": current_addon.interval,
+                            "locked_interval_count": current_addon.interval_count,
+                        },
+                    )
+
+                    requesting_user.log_event(
+                        f"Locked addon pricing for {member_profile.get_full_name()} for billing group invite '{billing_group.name}' - {current_addon.name} at ${current_addon.cost/100:.2f}/{current_addon.interval}",
+                        "admin",
+                    )
+
+                except SubscriptionAddon.DoesNotExist:
+                    requesting_user.log_event(
+                        f"Warning: Could not lock addon pricing for {member_profile.get_full_name()} - addon with ID {current_addon_id} not found",
+                        "admin",
+                    )
+            else:
+                requesting_user.log_event(
+                    f"Warning: No current additional member addon configured - pricing not locked for {member_profile.get_full_name()}",
+                    "admin",
+                )
+
+        except Exception as e:
+            requesting_user.log_event(
+                f"Error locking addon pricing for {member_profile.get_full_name()}: {str(e)}",
+                "admin",
+            )
+
+    def _remove_addon_pricing_for_invited_member(
+        self, member_profile, billing_group, requesting_user
+    ):
+        """
+        Remove the locked addon pricing records when an invitation is cancelled.
+        """
+        from profile.models import BillingGroupMemberAddon
+
+        try:
+            # Remove all locked addon pricing for this member in this billing group
+            removed_addons = BillingGroupMemberAddon.objects.filter(
+                billing_group=billing_group, member=member_profile
+            )
+
+            addon_names = [addon.addon.name for addon in removed_addons]
+            count = removed_addons.count()
+
+            removed_addons.delete()
+
+            if count > 0:
+                requesting_user.log_event(
+                    f"Removed {count} locked addon pricing records for {member_profile.get_full_name()}: {', '.join(addon_names)}",
+                    "admin",
+                )
+
+        except Exception as e:
+            requesting_user.log_event(
+                f"Error removing addon pricing for {member_profile.get_full_name()}: {str(e)}",
+                "admin",
+            )
+
     def post(self, request, billing_group_id):
         from profile.models import BillingGroup, Profile
 
@@ -1279,6 +1377,11 @@ class BillingGroupInviteManagement(APIView):
             member.billing_group_invite = billing_group
             member.save()
 
+            # Lock in current addon pricing for this invited member
+            self._lock_addon_pricing_for_invited_member(
+                member, billing_group, request.user
+            )
+
             # Send email notification
             subject = (
                 f"You've been invited to join billing group '{billing_group.name}'"
@@ -1295,6 +1398,11 @@ class BillingGroupInviteManagement(APIView):
             if member.billing_group_invite == billing_group:
                 member.billing_group_invite = None
                 member.save()
+
+                # Remove locked addon pricing for this cancelled invitation
+                self._remove_addon_pricing_for_invited_member(
+                    member, billing_group, request.user
+                )
 
                 request.user.log_event(
                     f"Cancelled invite for {member.get_full_name()} to billing group '{billing_group.name}'",
@@ -1319,3 +1427,214 @@ class BillingGroupInviteManagement(APIView):
             )
 
         return Response({"success": True})
+
+
+class ManageAddons(APIView):
+    """
+    get: returns a list of subscription addons
+    post: creates a new subscription addon
+    put: updates an existing subscription addon
+    delete: deletes a subscription addon
+    """
+
+    permission_classes = (permissions.IsAdminUser | HasAPIKey,)
+
+    def get(self, request, addon_id=None):
+        from .models import SubscriptionAddon
+
+        if addon_id:
+            try:
+                addon = SubscriptionAddon.objects.get(id=addon_id)
+                return Response(addon.get_object())
+            except SubscriptionAddon.DoesNotExist:
+                return Response(
+                    {"success": False, "message": "Addon not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+        else:
+            addon_type = request.GET.get("addon_type", None)
+            if addon_type:
+                addons = SubscriptionAddon.objects.filter(addon_type=addon_type)
+            else:
+                addons = SubscriptionAddon.objects.all()
+
+            addon_list = []
+            for addon in addons:
+                addon_list.append(addon.get_object())
+
+            return Response(addon_list)
+
+    def post(self, request):
+        from .models import SubscriptionAddon
+
+        data = request.data
+
+        # Validate required fields
+        required_fields = ["name", "addon_type", "cost", "currency", "interval"]
+        for field in required_fields:
+            if not data.get(field):
+                return Response(
+                    {"success": False, "message": f"{field} is required"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        try:
+            addon = SubscriptionAddon.objects.create(
+                name=data["name"],
+                description=data.get("description", ""),
+                addon_type=data["addon_type"],
+                visible=data.get("visible", True),
+                currency=data["currency"],
+                cost=int(data["cost"]),
+                interval_count=data.get("interval_count", 1),
+                interval=data["interval"],
+                min_quantity=data.get("min_quantity", 1),
+                max_quantity=data.get("max_quantity", 10),
+            )
+
+            request.user.log_event(
+                f"Created addon '{addon.name}'",
+                "admin",
+            )
+
+            return Response(
+                {"success": True, "addon_id": addon.id},
+                status=status.HTTP_201_CREATED,
+            )
+
+        except Exception as e:
+            capture_exception(e)
+            return Response(
+                {"success": False, "message": "Failed to create addon"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    def put(self, request, addon_id):
+        from .models import SubscriptionAddon
+
+        try:
+            addon = SubscriptionAddon.objects.get(id=addon_id)
+        except SubscriptionAddon.DoesNotExist:
+            return Response(
+                {"success": False, "message": "Addon not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        data = request.data
+
+        # Update fields
+        addon.name = data.get("name", addon.name)
+        addon.description = data.get("description", addon.description)
+        addon.visible = data.get("visible", addon.visible)
+        addon.currency = data.get("currency", addon.currency)
+        addon.cost = int(data.get("cost", addon.cost))
+        addon.interval_count = data.get("interval_count", addon.interval_count)
+        addon.interval = data.get("interval", addon.interval)
+        addon.min_quantity = data.get("min_quantity", addon.min_quantity)
+        addon.max_quantity = data.get("max_quantity", addon.max_quantity)
+
+        addon.save()
+
+        request.user.log_event(
+            f"Updated addon '{addon.name}'",
+            "admin",
+        )
+
+        return Response({"success": True})
+
+    def delete(self, request, addon_id):
+        from .models import SubscriptionAddon
+
+        try:
+            addon = SubscriptionAddon.objects.get(id=addon_id)
+        except SubscriptionAddon.DoesNotExist:
+            return Response(
+                {"success": False, "message": "Addon not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        addon_name = addon.name
+        addon.delete()
+
+        request.user.log_event(
+            f"Deleted addon '{addon_name}'",
+            "admin",
+        )
+
+        return Response({"success": True})
+
+
+class ManageCurrentAdditionalMemberAddon(APIView):
+    """
+    get: returns the current additional member addon
+    post: sets the current additional member addon
+    """
+
+    permission_classes = (permissions.IsAdminUser | HasAPIKey,)
+
+    def get(self, request):
+        from .models import SubscriptionAddon
+        from constance import config
+
+        current_addon_id = getattr(config, "CURRENT_ADDITIONAL_MEMBER_ADDON", None)
+
+        # Handle empty string or None values
+        if current_addon_id and str(current_addon_id).strip():
+            try:
+                addon = SubscriptionAddon.objects.get(
+                    id=int(current_addon_id),
+                    addon_type="additional_member",
+                    visible=True,
+                )
+                return Response({"success": True, "current_addon": addon.get_object()})
+            except SubscriptionAddon.DoesNotExist:
+                return Response(
+                    {
+                        "success": True,
+                        "current_addon": None,
+                        "message": "Configured addon not found",
+                    }
+                )
+        else:
+            return Response({"success": True, "current_addon": None})
+
+    def post(self, request):
+        from .models import SubscriptionAddon
+        from constance import config
+
+        addon_id = request.data.get("addon_id")
+
+        if not addon_id or str(addon_id).strip() == "":
+            # Clear the current addon
+            config.CURRENT_ADDITIONAL_MEMBER_ADDON = ""
+            request.user.log_event(
+                "Cleared current additional member addon",
+                "admin",
+            )
+            return Response({"success": True, "message": "Current addon cleared"})
+
+        try:
+            addon = SubscriptionAddon.objects.get(
+                id=int(addon_id), addon_type="additional_member", visible=True
+            )
+
+            # Set the current addon
+            config.CURRENT_ADDITIONAL_MEMBER_ADDON = str(addon_id)
+
+            request.user.log_event(
+                f"Set current additional member addon to '{addon.name}' (ID: {addon_id})",
+                "admin",
+            )
+
+            return Response(
+                {"success": True, "message": f"Current addon set to '{addon.name}'"}
+            )
+
+        except SubscriptionAddon.DoesNotExist:
+            return Response(
+                {
+                    "success": False,
+                    "message": "Addon not found or not an additional member addon",
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )

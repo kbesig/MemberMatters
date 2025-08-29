@@ -1,8 +1,6 @@
 // This is an object containing every piece of user visible text used for localisation (currently
 // only Australian English is supported)
 
-import Billing from 'src/pages/Billing.vue';
-
 export default {
   menuLink: {
     rootIndex: 'Dashboard',
@@ -17,6 +15,7 @@ export default {
     manageTiers: 'Membership Plans',
     manageTier: 'Manage Membership Plan',
     managePlan: 'Manage Payment Plan',
+    addons: 'Plan Addons',
     verifyEmail: 'Verify your email to continue',
 
     meetings: 'Meetings',
@@ -534,7 +533,11 @@ export default {
     members: 'Members',
     memberName: 'Member Name',
     memberEmail: 'Member Email',
+    memberStatus: 'Status',
+    statusMember: 'Member',
+    statusInvited: 'Invited',
     addMember: 'Add Member',
+    inviteMember: 'Invite Member',
     memberOfGroup: 'You are a member of this billing group',
     groupName: 'Group Name',
     groupNameRequired: 'Group name is required',
@@ -556,7 +559,29 @@ export default {
       decline: 'Decline',
       add: 'Add',
       remove: 'Remove',
+      addMember: 'Add Member',
+      inviteMember: 'Invite Member',
+      cancelInvite: 'Cancel Invite',
+      deleteBillingGroup: 'Delete Billing Group',
       actions: 'Actions',
+    },
+    addons: {
+      title: 'Add-ons',
+      additionalMembersTab: 'Additional Members',
+      additionalMembersCost: 'Additional Members Cost',
+      addAdditionalMemberCost: 'Add Additional Member Cost',
+      currentAdditionalMemberCost: 'Current Additional Member Cost',
+      currentlySelected: 'Currently Selected',
+      noadditionalMembersCost:
+        'There are no additional member costs configured.',
+      recurringDescription: 'Billing interval for this add-on',
+      minQuantity: 'Minimum Quantity',
+      maxQuantity: 'Maximum Quantity',
+      additionalMemberCostCreated:
+        'Additional member cost created successfully',
+      additionalMemberCostFailed: 'Failed to create additional member cost',
+      currentAdditionalMemberCostUpdated:
+        'Current additional member cost updated successfully',
     },
   },
   doors: {
@@ -727,6 +752,9 @@ export default {
     groupName: 'Billing Group Name',
     addMember: 'Invite someone to your billing group',
     memberEmail: 'Email',
+    lockedAddonPricing: 'Locked Addon Pricing',
+    lockedOn: 'Locked on',
+    noLockedPricing: 'No locked pricing',
     button: {
       submit: 'Submit',
       cancel: 'Cancel',

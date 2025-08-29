@@ -530,7 +530,7 @@ class SubscriptionInfo(StripeAPIView):
 
         else:
             s = stripe.Subscription.retrieve(
-                request.user.profile.stripe_subscription_id,
+                request.user.profile.stripe_subscription_id, expand=["items"]
             )
 
             if s:
@@ -538,7 +538,18 @@ class SubscriptionInfo(StripeAPIView):
                 addons = []
                 from api_admin_tools.models import SubscriptionAddon
 
-                for item in s.items.data:
+                # Get subscription items - handle both expanded and non-expanded cases
+                try:
+                    if hasattr(s.items, "data"):
+                        items = s.items.data
+                    else:
+                        # If items is not expanded, we need to list them separately
+                        items = stripe.SubscriptionItem.list(subscription=s.id).data
+                except AttributeError:
+                    # Fallback: list subscription items separately
+                    items = stripe.SubscriptionItem.list(subscription=s.id).data
+
+                for item in items:
                     if item.price.id != request.user.profile.membership_plan.stripe_id:
                         # This is an add-on item
                         try:
@@ -987,6 +998,68 @@ class MemberBillingGroupManagement(APIView):
     delete: deletes the current user's billing group (only if they are the primary member and only member).
     """
 
+    def _get_member_addon_pricing(self, member, billing_group):
+        """
+        Get the locked addon pricing for a specific member in a billing group.
+        """
+        from profile.models import BillingGroupMemberAddon
+
+        try:
+            locked_addons = BillingGroupMemberAddon.objects.filter(
+                billing_group=billing_group, member=member
+            ).select_related("addon")
+
+            return [
+                {
+                    "addon_id": locked_addon.addon.id,
+                    "addon_name": locked_addon.addon.name,
+                    "addon_type": locked_addon.addon.addon_type,
+                    "locked_pricing": locked_addon.get_locked_pricing_object(),
+                }
+                for locked_addon in locked_addons
+            ]
+        except Exception:
+            return []
+
+    def _get_members_and_invites(self, billing_group):
+        """
+        Get both actual members and invited members for a billing group.
+        """
+        from profile.models import Profile
+
+        result = []
+
+        # Add actual members
+        for member in billing_group.members.all():
+            result.append(
+                {
+                    "id": member.user.id,
+                    "name": member.get_full_name(),
+                    "email": member.user.email,
+                    "status": "member",
+                    "locked_addon_pricing": self._get_member_addon_pricing(
+                        member, billing_group
+                    ),
+                }
+            )
+
+        # Add invited members
+        invited_members = Profile.objects.filter(billing_group_invite=billing_group)
+        for invited_member in invited_members:
+            result.append(
+                {
+                    "id": invited_member.user.id,
+                    "name": invited_member.get_full_name(),
+                    "email": invited_member.user.email,
+                    "status": "invited",
+                    "locked_addon_pricing": self._get_member_addon_pricing(
+                        invited_member, billing_group
+                    ),
+                }
+            )
+
+        return result
+
     def get(self, request):
         from profile.models import BillingGroup
 
@@ -1009,14 +1082,7 @@ class MemberBillingGroupManagement(APIView):
                             if billing_group.primary_member
                             else None
                         ),
-                        "members": [
-                            {
-                                "id": member.user.id,
-                                "name": member.get_full_name(),
-                                "email": member.user.email,
-                            }
-                            for member in billing_group.members.all()
-                        ],
+                        "members": self._get_members_and_invites(billing_group),
                         "is_primary": billing_group.primary_member == user_profile,
                     },
                 }
@@ -1142,9 +1208,101 @@ class MemberBillingGroupManagement(APIView):
 
 class MemberBillingGroupMemberManagement(APIView):
     """
-    post: adds a member to the current user's billing group.
+    post: sends an invitation to join the current user's billing group.
     delete: removes a member from the current user's billing group.
     """
+
+    def _lock_addon_pricing_for_invited_member(
+        self, member_profile, billing_group, requesting_user
+    ):
+        """
+        Lock in the current addon pricing for an invited billing group member.
+        This captures the current additional member addon pricing when someone
+        is invited to a billing group.
+        """
+        from profile.models import BillingGroupMemberAddon
+        from api_admin_tools.models import SubscriptionAddon
+        from constance import config
+
+        try:
+            # Get the current additional member addon setting
+            current_addon_id = getattr(config, "CURRENT_ADDITIONAL_MEMBER_ADDON", None)
+
+            # Handle empty string or None values
+            if current_addon_id and str(current_addon_id).strip():
+                try:
+                    current_addon = SubscriptionAddon.objects.get(
+                        id=int(current_addon_id),
+                        addon_type="additional_member",
+                        visible=True,
+                    )
+
+                    # Create the locked pricing record
+                    BillingGroupMemberAddon.objects.get_or_create(
+                        billing_group=billing_group,
+                        member=member_profile,
+                        addon=current_addon,
+                        defaults={
+                            "locked_cost": current_addon.cost,
+                            "locked_currency": current_addon.currency,
+                            "locked_interval": current_addon.interval,
+                            "locked_interval_count": current_addon.interval_count,
+                        },
+                    )
+
+                    requesting_user.log_event(
+                        f"Locked addon pricing for {member_profile.get_full_name()} in billing group '{billing_group.name}' - {current_addon.name} at ${current_addon.cost/100:.2f}/{current_addon.interval}",
+                        "billing_group",
+                    )
+
+                except SubscriptionAddon.DoesNotExist:
+                    requesting_user.log_event(
+                        f"Warning: Could not lock addon pricing for {member_profile.get_full_name()} - addon with ID {current_addon_id} not found",
+                        "billing_group",
+                    )
+            else:
+                requesting_user.log_event(
+                    f"Warning: No current additional member addon configured - pricing not locked for {member_profile.get_full_name()}",
+                    "billing_group",
+                )
+
+        except Exception as e:
+            requesting_user.log_event(
+                f"Error locking addon pricing for {member_profile.get_full_name()}: {str(e)}",
+                "billing_group",
+            )
+
+    def _remove_addon_pricing_for_invited_member(
+        self, member_profile, billing_group, requesting_user
+    ):
+        """
+        Remove the locked addon pricing records when a member is removed from a billing group
+        or when an invitation is cancelled.
+        """
+        from profile.models import BillingGroupMemberAddon
+
+        try:
+            # Remove all locked addon pricing for this member in this billing group
+            removed_addons = BillingGroupMemberAddon.objects.filter(
+                billing_group=billing_group, member=member_profile
+            )
+
+            addon_names = [addon.addon.name for addon in removed_addons]
+            count = removed_addons.count()
+
+            removed_addons.delete()
+
+            if count > 0:
+                requesting_user.log_event(
+                    f"Removed {count} locked addon pricing records for {member_profile.get_full_name()}: {', '.join(addon_names)}",
+                    "billing_group",
+                )
+
+        except Exception as e:
+            requesting_user.log_event(
+                f"Error removing addon pricing for {member_profile.get_full_name()}: {str(e)}",
+                "billing_group",
+            )
 
     def post(self, request):
         from profile.models import Profile
@@ -1160,7 +1318,7 @@ class MemberBillingGroupMemberManagement(APIView):
             return Response(
                 {
                     "success": False,
-                    "message": "You must be the primary member of a billing group to add members.",
+                    "message": "You must be the primary member of a billing group to send invitations.",
                 },
                 status=status.HTTP_403_FORBIDDEN,
             )
@@ -1193,12 +1351,32 @@ class MemberBillingGroupMemberManagement(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Add member to billing group
-        member_profile.billing_group = user_profile.billing_group
+        # Check if member already has a pending invitation
+        if member_profile.billing_group_invite:
+            return Response(
+                {
+                    "success": False,
+                    "message": "This member already has a pending billing group invitation.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Send invitation to billing group
+        member_profile.billing_group_invite = user_profile.billing_group
         member_profile.save()
 
+        # Lock in current addon pricing for this invited member
+        self._lock_addon_pricing_for_invited_member(
+            member_profile, user_profile.billing_group, request.user
+        )
+
+        # Send email notification
+        subject = f"You've been invited to join billing group '{user_profile.billing_group.name}'"
+        message = f"You have been invited to join the billing group '{user_profile.billing_group.name}'. Please log into your account to accept or decline this invitation."
+        member_profile.user.email_notification(subject, message)
+
         request.user.log_event(
-            f"Added {member_profile.get_full_name()} to billing group '{user_profile.billing_group.name}'",
+            f"Invited {member_profile.get_full_name()} to billing group '{user_profile.billing_group.name}'",
             "billing_group",
         )
 
@@ -1218,7 +1396,7 @@ class MemberBillingGroupMemberManagement(APIView):
             return Response(
                 {
                     "success": False,
-                    "message": "You must be the primary member of a billing group to remove members.",
+                    "message": "You must be the primary member of a billing group to remove members or cancel invitations.",
                 },
                 status=status.HTTP_403_FORBIDDEN,
             )
@@ -1231,24 +1409,54 @@ class MemberBillingGroupMemberManagement(APIView):
             )
 
         try:
-            member_profile = Profile.objects.get(
-                user_id=member_id, billing_group=user_profile.billing_group
-            )
+            member_profile = Profile.objects.get(user_id=member_id)
         except Profile.DoesNotExist:
             return Response(
                 {
                     "success": False,
-                    "message": "Member not found in this billing group.",
+                    "message": "Member not found.",
                 },
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # Remove member from billing group
-        member_profile.billing_group = None
-        member_profile.save()
+        # Check if this is an invited member (not yet accepted) or an actual member
+        if member_profile.billing_group_invite == user_profile.billing_group:
+            # This is a pending invitation - cancel it
+            billing_group_name = user_profile.billing_group.name
+            member_profile.billing_group_invite = None
+            member_profile.save()
+
+            # Remove any locked pricing for this invitation
+            self._remove_addon_pricing_for_invited_member(
+                member_profile, user_profile.billing_group, request.user
+            )
+
+            action = "Cancelled invitation to"
+
+        elif member_profile.billing_group == user_profile.billing_group:
+            # This is an actual member - remove them
+            billing_group_name = user_profile.billing_group.name
+            member_profile.billing_group = None
+            member_profile.save()
+
+            # Remove any locked pricing for this member
+            self._remove_addon_pricing_for_invited_member(
+                member_profile, user_profile.billing_group, request.user
+            )
+
+            action = "Removed"
+
+        else:
+            return Response(
+                {
+                    "success": False,
+                    "message": "Member not found in this billing group or invited to it.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         request.user.log_event(
-            f"Removed {member_profile.get_full_name()} from billing group '{user_profile.billing_group.name}'",
+            f"{action} {member_profile.get_full_name()} from billing group '{billing_group_name}'",
             "billing_group",
         )
 
@@ -1259,6 +1467,96 @@ class MemberBillingGroupInviteResponse(APIView):
     """
     post: accepts or declines a billing group invitation.
     """
+
+    def _lock_addon_pricing_for_member(
+        self, member_profile, billing_group, requesting_user
+    ):
+        """
+        Lock in the current addon pricing for a new billing group member.
+        This captures the current additional member addon pricing when someone
+        is added to a billing group.
+        """
+        from profile.models import BillingGroupMemberAddon
+        from api_admin_tools.models import SubscriptionAddon
+        from constance import config
+
+        try:
+            # Get the current additional member addon setting
+            current_addon_id = getattr(config, "CURRENT_ADDITIONAL_MEMBER_ADDON", None)
+
+            if current_addon_id:
+                try:
+                    current_addon = SubscriptionAddon.objects.get(
+                        id=current_addon_id,
+                        addon_type="additional_member",
+                        visible=True,
+                    )
+
+                    # Create the locked pricing record
+                    BillingGroupMemberAddon.objects.get_or_create(
+                        billing_group=billing_group,
+                        member=member_profile,
+                        addon=current_addon,
+                        defaults={
+                            "locked_cost": current_addon.cost,
+                            "locked_currency": current_addon.currency,
+                            "locked_interval": current_addon.interval,
+                            "locked_interval_count": current_addon.interval_count,
+                        },
+                    )
+
+                    requesting_user.log_event(
+                        f"Locked addon pricing for {member_profile.get_full_name()} in billing group '{billing_group.name}' - {current_addon.name} at ${current_addon.cost/100:.2f}/{current_addon.interval}",
+                        "billing_group",
+                    )
+
+                except SubscriptionAddon.DoesNotExist:
+                    requesting_user.log_event(
+                        f"Warning: Could not lock addon pricing for {member_profile.get_full_name()} - addon with ID {current_addon_id} not found",
+                        "billing_group",
+                    )
+            else:
+                requesting_user.log_event(
+                    f"Warning: No current additional member addon configured - pricing not locked for {member_profile.get_full_name()}",
+                    "billing_group",
+                )
+
+        except Exception as e:
+            requesting_user.log_event(
+                f"Error locking addon pricing for {member_profile.get_full_name()}: {str(e)}",
+                "billing_group",
+            )
+
+    def _remove_addon_pricing_for_invited_member(
+        self, member_profile, billing_group, requesting_user
+    ):
+        """
+        Remove the locked addon pricing records when an invitation is declined.
+        """
+        from profile.models import BillingGroupMemberAddon
+
+        try:
+            # Remove all locked addon pricing for this member in this billing group
+            removed_addons = BillingGroupMemberAddon.objects.filter(
+                billing_group=billing_group, member=member_profile
+            )
+
+            addon_names = [addon.addon.name for addon in removed_addons]
+            count = removed_addons.count()
+
+            removed_addons.delete()
+
+            if count > 0:
+                requesting_user.log_event(
+                    f"Removed {count} locked addon pricing records for {member_profile.get_full_name()}: {', '.join(addon_names)}",
+                    "billing_group",
+                )
+
+        except Exception as e:
+            requesting_user.log_event(
+                f"Error removing addon pricing for {member_profile.get_full_name()}: {str(e)}",
+                "billing_group",
+            )
 
     def post(self, request):
         from profile.models import Profile
@@ -1297,15 +1595,23 @@ class MemberBillingGroupInviteResponse(APIView):
             user_profile.billing_group_invite = None
             user_profile.save()
 
+            # Note: Addon pricing was already locked when the invitation was sent,
+            # so we don't need to lock it again here
+
             request.user.log_event(
                 f"Accepted invitation to billing group '{billing_group.name}'",
                 "billing_group",
             )
 
         else:  # decline
-            # Remove invitation
+            # Remove invitation and any locked addon pricing
             user_profile.billing_group_invite = None
             user_profile.save()
+
+            # Remove locked addon pricing for this declined invitation
+            self._remove_addon_pricing_for_invited_member(
+                user_profile, billing_group, request.user
+            )
 
             request.user.log_event(
                 f"Declined invitation to billing group '{billing_group.name}'",

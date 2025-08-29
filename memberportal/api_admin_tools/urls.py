@@ -118,4 +118,19 @@ urlpatterns = [
         views.BillingGroupInviteManagement.as_view(),
         name="BillingGroupInviteManagement",
     ),
+    path(
+        "api/admin/addons/",
+        views.ManageAddons.as_view(),
+        name="ManageAddons",
+    ),
+    path(
+        "api/admin/addons/<int:addon_id>/",
+        views.ManageAddons.as_view(),
+        name="ManageAddons",
+    ),
+    path(
+        "api/admin/addons/current-additional-member/",
+        views.ManageCurrentAdditionalMemberAddon.as_view(),
+        name="ManageCurrentAdditionalMemberAddon",
+    ),
 ]

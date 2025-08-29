@@ -333,6 +333,61 @@ class BillingGroup(ExportModelOperationsMixin("billing_group"), models.Model):
         return self.get_primary_member()
 
 
+class BillingGroupMemberAddon(
+    ExportModelOperationsMixin("billing_group_member_addon"), models.Model
+):
+    """
+    Tracks the locked-in addon pricing for billing group members.
+    When a member is added to a billing group, their addon pricing is locked
+    to the current addon cost at that time.
+    """
+
+    id = models.AutoField(primary_key=True)
+    billing_group = models.ForeignKey(
+        BillingGroup,
+        on_delete=models.CASCADE,
+        related_name="member_addons",
+    )
+    member = models.ForeignKey(
+        "Profile",
+        on_delete=models.CASCADE,
+        related_name="billing_group_addons",
+    )
+    addon = models.ForeignKey(
+        "api_admin_tools.SubscriptionAddon",
+        on_delete=models.CASCADE,
+        related_name="billing_group_members",
+    )
+    locked_cost = models.IntegerField(
+        help_text="Cost in cents when this member was added to the billing group"
+    )
+    locked_currency = models.CharField(max_length=3, default="aud")
+    locked_interval = models.CharField(max_length=10)
+    locked_interval_count = models.IntegerField(default=1)
+    date_locked = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Billing Group Member Add-on"
+        verbose_name_plural = "Billing Group Member Add-ons"
+        unique_together = [["billing_group", "member", "addon"]]
+
+    def __str__(self):
+        return f"{self.member.get_full_name()} - {self.addon.name} in {self.billing_group.name}"
+
+    def get_cost_display(self):
+        return f"${self.locked_cost/100:.2f}"
+
+    def get_locked_pricing_object(self):
+        return {
+            "cost": self.locked_cost,
+            "cost_display": self.get_cost_display(),
+            "currency": self.locked_currency,
+            "interval": self.locked_interval,
+            "interval_count": self.locked_interval_count,
+            "date_locked": self.date_locked.isoformat(),
+        }
+
+
 class Profile(ExportModelOperationsMixin("profile"), models.Model):
     STATES = (
         ("noob", "Needs Induction"),

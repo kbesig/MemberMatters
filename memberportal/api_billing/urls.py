@@ -38,6 +38,11 @@ urlpatterns = [
         name="SubscriptionInfo",
     ),
     path(
+        "api/billing/membership-plan-cost-summary/",
+        views.MembershipPlanCostSummary.as_view(),
+        name="MembershipPlanCostSummary",
+    ),
+    path(
         "api/billing/can-signup/",
         views.CanSignup.as_view(),
         name="CanSignup",

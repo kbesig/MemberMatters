@@ -20,6 +20,62 @@
       <template v-else>
         <selected-tier :plan="currentPlan" :tier="currentTier" />
 
+        <!-- Cost Summary Table -->
+        <div v-if="costSummary" class="q-mb-md full-width">
+          <div class="text-h6 q-py-md">
+            {{ $t('paymentPlans.costSummary') }}
+          </div>
+          <q-card>
+            <q-list bordered separator>
+              <q-item>
+                <q-item-section>
+                  <q-item-label>{{
+                    costSummary.base_plan.cost_display
+                  }}</q-item-label>
+                  <q-item-label caption>{{
+                    costSummary.base_plan.label
+                  }}</q-item-label>
+                </q-item-section>
+              </q-item>
+              <template v-if="costSummary.additional_members.count > 0">
+                <q-item
+                  v-for="member in costSummary.additional_members.members"
+                  :key="member.name"
+                >
+                  <q-item-section>
+                    <q-item-label>{{ member.cost_display }}</q-item-label>
+                    <q-item-label caption>{{ member.name }}</q-item-label>
+                  </q-item-section>
+                </q-item>
+                <q-item v-if="costSummary.additional_members.count > 1">
+                  <q-item-section>
+                    <q-item-label class="text-grey-7">{{
+                      costSummary.additional_members.total_cost_display
+                    }}</q-item-label>
+                    <q-item-label caption class="text-grey-7"
+                      >{{
+                        costSummary.additional_members.label
+                      }}
+                      Subtotal</q-item-label
+                    >
+                  </q-item-section>
+                </q-item>
+              </template>
+              <q-separator />
+              <q-item>
+                <q-item-section>
+                  <q-item-label class="text-weight-bold">{{
+                    costSummary.total_per_month.cost_display
+                  }}</q-item-label>
+                  <q-item-label caption class="text-weight-bold">{{
+                    costSummary.total_per_month.label
+                  }}</q-item-label>
+                </q-item-section>
+              </q-item>
+            </q-list>
+          </q-card>
+        </div>
+
         <div v-if="cancelSuccess" class="row q-mb-md">
           <q-banner class="bg-success text-white">
             <div class="text-h5">{{ $tc('actionSuccess') }}</div>
@@ -124,6 +180,7 @@ export default defineComponent({
       disableButton: false,
       loadingButton: false,
       cancelSuccess: false,
+      costSummary: null,
       subscriptionInfo: {
         billingCycleAnchor: null,
         currentPeriodEnd: null,
@@ -169,6 +226,19 @@ export default defineComponent({
   },
   methods: {
     ...mapActions('profile', ['getProfile']),
+    getCostSummary() {
+      this.$axios
+        .get('/api/billing/membership-plan-cost-summary/')
+        .then((result) => {
+          if (result.data.success) {
+            this.costSummary = result.data.costs;
+          }
+        })
+        .catch(() => {
+          // Silently fail if cost summary is not available
+          this.costSummary = null;
+        });
+    },
     getSubscriptionInfo() {
       this.$axios.get('/api/billing/myplan/').then((result) => {
         if (result.data.success) {
@@ -264,6 +334,7 @@ export default defineComponent({
   },
   mounted() {
     this.getProfile();
+    this.getCostSummary();
     this.getSubscriptionInfo();
     this.getCanSignup();
   },

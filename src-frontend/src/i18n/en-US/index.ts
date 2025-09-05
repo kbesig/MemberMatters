@@ -627,6 +627,7 @@ export default {
     renewalDate: 'Renewal Date',
     signupDate: 'Signup Date',
     subscriptionInfo: 'Subscription Info',
+    costSummary: 'Cost Summary',
     accountOnlyWarning:
       "Your profile is currently set to 'account only'. This is because you skipped this process last time. You're welcome to continue using this account for our online services, or you can signup to become a member below. ",
     profileAccountOnlyWarning:

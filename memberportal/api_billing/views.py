@@ -593,6 +593,109 @@ class SubscriptionInfo(StripeAPIView):
             return Response({"success": False})
 
 
+class MembershipPlanCostSummary(APIView):
+    """
+    get: returns a summary of costs for the selected membership plan.
+    """
+
+    def get(self, request):
+        # Get the user's current plan
+        profile = request.user.profile
+        plan = profile.membership_plan
+
+        if not plan:
+            return Response(
+                {"success": False, "message": "No membership plan found."}, status=404
+            )
+
+        # Base plan cost
+        base_cost = plan.cost
+        base_cost_display = f"${base_cost/100:.2f}"
+
+        # Calculate additional member costs with individual pricing
+        additional_members_detail = []
+        additional_member_cost = 0
+
+        if profile.billing_group:
+            # Get all members except the primary member
+            additional_members = profile.billing_group.members.exclude(id=profile.id)
+
+            for member in additional_members:
+                # Check if this member has locked pricing
+                from profile.models import BillingGroupMemberAddon
+
+                locked_addons = BillingGroupMemberAddon.objects.filter(
+                    billing_group=profile.billing_group,
+                    member=member,
+                    addon__addon_type="additional_member",
+                )
+
+                member_cost = 0
+                member_cost_display = "$0.00"
+
+                if locked_addons.exists():
+                    # Use locked pricing for this member
+                    for locked_addon in locked_addons:
+                        member_cost += locked_addon.locked_cost
+                    member_cost_display = f"${member_cost/100:.2f}"
+                else:
+                    # Fall back to current addon pricing
+                    addon_id = getattr(config, "CURRENT_ADDITIONAL_MEMBER_ADDON", None)
+                    if addon_id:
+                        try:
+                            addon = SubscriptionAddon.objects.get(
+                                id=addon_id,
+                                addon_type="additional_member",
+                                visible=True,
+                            )
+                            member_cost = addon.cost
+                            member_cost_display = f"${member_cost/100:.2f}"
+                        except SubscriptionAddon.DoesNotExist:
+                            pass
+
+                additional_members_detail.append(
+                    {
+                        "name": member.get_full_name(),
+                        "cost": member_cost,
+                        "cost_display": member_cost_display,
+                    }
+                )
+
+                additional_member_cost += member_cost
+
+        additional_member_count = len(additional_members_detail)
+        additional_member_cost_display = f"${additional_member_cost/100:.2f}"
+
+        # Total cost per month
+        total_cost = base_cost + additional_member_cost
+        total_cost_display = f"${total_cost/100:.2f}"
+
+        return Response(
+            {
+                "success": True,
+                "costs": {
+                    "base_plan": {
+                        "label": "Base Plan",
+                        "cost": base_cost,
+                        "cost_display": base_cost_display,
+                    },
+                    "additional_members": {
+                        "label": "Additional Members",
+                        "count": additional_member_count,
+                        "total_cost": additional_member_cost,
+                        "total_cost_display": additional_member_cost_display,
+                        "members": additional_members_detail,
+                    },
+                    "total_per_month": {
+                        "label": "Total Per Month",
+                        "cost": total_cost,
+                        "cost_display": total_cost_display,
+                    },
+                },
+            }
+        )
+
+
 class PaymentPlanResumeCancel(StripeAPIView):
     """
     post: attempts to cancel a member's payment plan.

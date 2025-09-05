@@ -440,6 +440,28 @@ export default defineComponent({
     },
 
     async respondToInvite(action) {
+      // If accepting and user has an active subscription, show warning dialog
+      if (
+        action === 'accept' &&
+        this.profile.financial.subscriptionState === 'active'
+      ) {
+        this.$q
+          .dialog({
+            title: this.$t('billing.confirmAcceptInvite'),
+            message: this.$t('billing.subscriptionCancellationWarning'),
+            cancel: true,
+            persistent: true,
+            color: 'warning',
+          })
+          .onOk(() => {
+            this.processInviteResponse(action);
+          });
+      } else {
+        this.processInviteResponse(action);
+      }
+    },
+
+    async processInviteResponse(action) {
       this.loading = true;
       try {
         const response = await this.$axios.post(

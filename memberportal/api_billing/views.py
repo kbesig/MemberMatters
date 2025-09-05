@@ -1634,15 +1634,41 @@ class MemberBillingGroupMemberManagement(StripeAPIView):
             member_profile, user_profile.billing_group, request.user
         )
 
-        # Send email notification
+        # Send email notification with appropriate message based on subscription status
         subject = f"You've been invited to join billing group '{user_profile.billing_group.name}'"
-        message = f"You have been invited to join the billing group '{user_profile.billing_group.name}'. Please log into your account to accept or decline this invitation."
+
+        if (
+            member_profile.stripe_subscription_id
+            and member_profile.subscription_status == "active"
+        ):
+            message = (
+                f"You have been invited to join the billing group '{user_profile.billing_group.name}'. "
+                f"Please note: If you accept this invitation, your current individual subscription will be "
+                f"cancelled immediately with proration for any remaining time, and you will join the billing group's "
+                f"shared subscription. Please log into your account to accept or decline this invitation."
+            )
+        else:
+            message = (
+                f"You have been invited to join the billing group '{user_profile.billing_group.name}'. "
+                f"Please log into your account to accept or decline this invitation."
+            )
+
         member_profile.user.email_notification(subject, message)
 
-        request.user.log_event(
-            f"Invited {member_profile.get_full_name()} to billing group '{user_profile.billing_group.name}'",
-            "billing_group",
-        )
+        # Log with subscription status information
+        if (
+            member_profile.stripe_subscription_id
+            and member_profile.subscription_status == "active"
+        ):
+            request.user.log_event(
+                f"Invited {member_profile.get_full_name()} (with active individual subscription) to billing group '{user_profile.billing_group.name}'",
+                "billing_group",
+            )
+        else:
+            request.user.log_event(
+                f"Invited {member_profile.get_full_name()} to billing group '{user_profile.billing_group.name}'",
+                "billing_group",
+            )
 
         return Response({"success": True})
 
@@ -1733,6 +1759,87 @@ class MemberBillingGroupInviteResponse(StripeAPIView):
     """
     post: accepts or declines a billing group invitation.
     """
+
+    def _cancel_individual_subscription_with_proration(
+        self, member_profile, requesting_user
+    ):
+        """
+        Cancel a member's individual subscription with proration when they join a billing group.
+        This ensures they get credit for the remaining time on their current subscription.
+        """
+        try:
+            if not member_profile.stripe_subscription_id:
+                requesting_user.log_event(
+                    f"Cannot cancel subscription for {member_profile.get_full_name()} - no active subscription found",
+                    "billing_group",
+                )
+                return False
+
+            # First, retrieve the subscription to verify it exists and get its status
+            try:
+                existing_subscription = stripe.Subscription.retrieve(
+                    member_profile.stripe_subscription_id
+                )
+
+                # If subscription is already cancelled, just update the profile
+                if existing_subscription.status in ["canceled", "cancelled"]:
+                    requesting_user.log_event(
+                        f"Subscription for {member_profile.get_full_name()} was already cancelled in Stripe",
+                        "billing_group",
+                    )
+                    # Update profile to reflect the cancellation
+                    member_profile.stripe_subscription_id = None
+                    member_profile.membership_plan = None
+                    member_profile.subscription_status = "inactive"
+                    member_profile.save()
+                    return True
+
+            except stripe.error.InvalidRequestError:
+                # Subscription doesn't exist in Stripe, just update the profile
+                requesting_user.log_event(
+                    f"Subscription {member_profile.stripe_subscription_id} for {member_profile.get_full_name()} not found in Stripe - updating profile only",
+                    "billing_group",
+                )
+                member_profile.stripe_subscription_id = None
+                member_profile.membership_plan = None
+                member_profile.subscription_status = "inactive"
+                member_profile.save()
+                return True
+
+            # Cancel the subscription immediately with proration
+            cancelled_subscription = stripe.Subscription.modify(
+                member_profile.stripe_subscription_id,
+                cancel_at_period_end=False,
+                proration_behavior="create_prorations",
+            )
+
+            # Update the profile to reflect the cancellation
+            member_profile.stripe_subscription_id = None
+            member_profile.membership_plan = None
+            member_profile.subscription_status = "inactive"
+            member_profile.save()
+
+            requesting_user.log_event(
+                f"Successfully cancelled individual subscription for {member_profile.get_full_name()} with proration when joining billing group",
+                "billing_group",
+            )
+
+            return True
+
+        except stripe.error.StripeError as e:
+            requesting_user.log_event(
+                f"Stripe error cancelling subscription for {member_profile.get_full_name()}: {str(e)}",
+                "billing_group",
+            )
+            capture_exception(e)
+            return False
+        except Exception as e:
+            requesting_user.log_event(
+                f"Error cancelling subscription for {member_profile.get_full_name()}: {str(e)}",
+                "billing_group",
+            )
+            capture_exception(e)
+            return False
 
     def _create_stripe_subscription_item_for_member(
         self, member_profile, billing_group, requesting_user
@@ -1978,6 +2085,23 @@ class MemberBillingGroupInviteResponse(StripeAPIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
+            # Cancel their individual subscription with proration before joining the billing group
+            if user_profile.stripe_subscription_id:
+                cancellation_success = (
+                    self._cancel_individual_subscription_with_proration(
+                        user_profile, request.user
+                    )
+                )
+
+                if not cancellation_success:
+                    return Response(
+                        {
+                            "success": False,
+                            "message": "Failed to cancel your current subscription. Please try again or contact support.",
+                        },
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    )
+
             # Add user to billing group
             user_profile.billing_group = billing_group
             user_profile.billing_group_invite = None
@@ -1990,12 +2114,12 @@ class MemberBillingGroupInviteResponse(StripeAPIView):
 
             if subscription_item_id:
                 request.user.log_event(
-                    f"Accepted invitation to billing group '{billing_group.name}' and created Stripe subscription item",
+                    f"Accepted invitation to billing group '{billing_group.name}', cancelled individual subscription with proration, and created Stripe subscription item",
                     "billing_group",
                 )
             else:
                 request.user.log_event(
-                    f"Accepted invitation to billing group '{billing_group.name}' but failed to create Stripe subscription item",
+                    f"Accepted invitation to billing group '{billing_group.name}' and cancelled individual subscription with proration, but failed to create Stripe subscription item",
                     "billing_group",
                 )
 

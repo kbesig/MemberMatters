@@ -1382,17 +1382,37 @@ class BillingGroupInviteManagement(APIView):
                 member, billing_group, request.user
             )
 
-            # Send email notification
+            # Send email notification with appropriate message based on subscription status
             subject = (
                 f"You've been invited to join billing group '{billing_group.name}'"
             )
-            message = f"You have been invited to join the billing group '{billing_group.name}'. Please log into your account to accept or decline this invitation."
+
+            if member.stripe_subscription_id and member.subscription_status == "active":
+                message = (
+                    f"You have been invited to join the billing group '{billing_group.name}'. "
+                    f"Please note: If you accept this invitation, your current individual subscription will be "
+                    f"cancelled immediately with proration for any remaining time, and you will join the billing group's "
+                    f"shared subscription. Please log into your account to accept or decline this invitation."
+                )
+            else:
+                message = (
+                    f"You have been invited to join the billing group '{billing_group.name}'. "
+                    f"Please log into your account to accept or decline this invitation."
+                )
+
             member.user.email_notification(subject, message)
 
-            request.user.log_event(
-                f"Invited {member.get_full_name()} to billing group '{billing_group.name}'",
-                "admin",
-            )
+            # Log with subscription status information
+            if member.stripe_subscription_id and member.subscription_status == "active":
+                request.user.log_event(
+                    f"Invited {member.get_full_name()} (with active individual subscription) to billing group '{billing_group.name}'",
+                    "admin",
+                )
+            else:
+                request.user.log_event(
+                    f"Invited {member.get_full_name()} to billing group '{billing_group.name}'",
+                    "admin",
+                )
 
         elif action == "cancel":
             if member.billing_group_invite == billing_group:

@@ -543,6 +543,9 @@ export default {
     memberRemoved: 'Member removed successfully',
     inviteAccepted: 'Invitation accepted successfully',
     inviteDeclined: 'Invitation declined successfully',
+    confirmAcceptInvite: 'Confirm Invitation Acceptance',
+    subscriptionCancellationWarning:
+      "Warning: You currently have an active individual subscription. If you accept this invitation, your current subscription will be cancelled immediately with proration for any remaining time, and you will join the billing group's shared subscription. This action cannot be undone. Do you want to proceed?",
     lockedAddonPricing: 'Locked Addon Pricing',
     lockedOn: 'Locked on',
     noLockedPricing: 'No locked pricing',

@@ -20,62 +20,6 @@
       <template v-else>
         <selected-tier :plan="currentPlan" :tier="currentTier" />
 
-        <!-- Cost Summary Table -->
-        <div v-if="costSummary" class="q-mb-md full-width">
-          <div class="text-h6 q-py-md">
-            {{ $t('paymentPlans.costSummary') }}
-          </div>
-          <q-card>
-            <q-list bordered separator>
-              <q-item>
-                <q-item-section>
-                  <q-item-label>{{
-                    costSummary.base_plan.cost_display
-                  }}</q-item-label>
-                  <q-item-label caption>{{
-                    costSummary.base_plan.label
-                  }}</q-item-label>
-                </q-item-section>
-              </q-item>
-              <template v-if="costSummary.additional_members.count > 0">
-                <q-item
-                  v-for="member in costSummary.additional_members.members"
-                  :key="member.name"
-                >
-                  <q-item-section>
-                    <q-item-label>{{ member.cost_display }}</q-item-label>
-                    <q-item-label caption>{{ member.name }}</q-item-label>
-                  </q-item-section>
-                </q-item>
-                <q-item v-if="costSummary.additional_members.count > 1">
-                  <q-item-section>
-                    <q-item-label class="text-grey-7">{{
-                      costSummary.additional_members.total_cost_display
-                    }}</q-item-label>
-                    <q-item-label caption class="text-grey-7"
-                      >{{
-                        costSummary.additional_members.label
-                      }}
-                      Subtotal</q-item-label
-                    >
-                  </q-item-section>
-                </q-item>
-              </template>
-              <q-separator />
-              <q-item>
-                <q-item-section>
-                  <q-item-label class="text-weight-bold">{{
-                    costSummary.total_per_month.cost_display
-                  }}</q-item-label>
-                  <q-item-label caption class="text-weight-bold">{{
-                    costSummary.total_per_month.label
-                  }}</q-item-label>
-                </q-item-section>
-              </q-item>
-            </q-list>
-          </q-card>
-        </div>
-
         <div v-if="cancelSuccess" class="row q-mb-md">
           <q-banner class="bg-success text-white">
             <div class="text-h5">{{ $tc('actionSuccess') }}</div>
@@ -94,31 +38,135 @@
           </q-banner>
         </div>
 
+        <!-- Subscription Info and Cost Summary side by side -->
         <div
           v-if="
             this.subscriptionInfo?.currentPeriodEnd &&
             subscriptionStatus !== 'cancelling'
           "
-          class="q-mb-md"
+          class="row q-col-gutter-md q-mb-md full-width"
         >
+          <!-- Subscription Info Table (Left Side) -->
+          <div class="col-12 col-md-6">
+            <div class="text-h6 q-py-md">
+              {{ $t('paymentPlans.subscriptionInfo') }}
+            </div>
+            <q-card>
+              <q-list bordered separator>
+                <q-item>
+                  <q-item-section>
+                    <q-item-label>{{ currentPeriodEnd }}</q-item-label>
+                    <q-item-label caption>{{
+                      $tc('paymentPlans.renewalDate')
+                    }}</q-item-label>
+                  </q-item-section>
+                </q-item>
+                <q-item>
+                  <q-item-section>
+                    <q-item-label>{{ signupDate }}</q-item-label>
+                    <q-item-label caption>{{
+                      $tc('paymentPlans.signupDate')
+                    }}</q-item-label>
+                  </q-item-section>
+                </q-item>
+              </q-list>
+            </q-card>
+          </div>
+
+          <!-- Cost Summary Table (Right Side) -->
+          <div v-if="costSummary" class="col-12 col-md-6">
+            <div class="text-h6 q-py-md">
+              {{ costSummary.label }}
+            </div>
+            <q-card>
+              <q-list bordered separator>
+                <q-item
+                  v-for="item in costSummary.line_items"
+                  :key="item.description"
+                >
+                  <q-item-section>
+                    <q-item-label>
+                      {{ item.description }}
+                      <span v-if="item.proration" class="text-orange">
+                        (Prorated)</span
+                      >
+                    </q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <q-item-label>{{ item.cost_display }}</q-item-label>
+                  </q-item-section>
+                </q-item>
+                <q-separator />
+                <q-item>
+                  <q-item-section>
+                    <q-item-label class="text-weight-bold">Total</q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <q-item-label class="text-weight-bold">{{
+                      costSummary.total_display
+                    }}</q-item-label>
+                  </q-item-section>
+                </q-item>
+                <q-item v-if="costSummary.amount_due !== costSummary.total">
+                  <q-item-section>
+                    <q-item-label class="text-weight-bold text-orange"
+                      >Amount Due Now</q-item-label
+                    >
+                  </q-item-section>
+                  <q-item-section side>
+                    <q-item-label class="text-orange text-weight-bold">{{
+                      costSummary.amount_due_display
+                    }}</q-item-label>
+                  </q-item-section>
+                </q-item>
+              </q-list>
+            </q-card>
+          </div>
+        </div>
+
+        <!-- Fallback: Show cost summary separately if no subscription info -->
+        <div v-else-if="costSummary" class="q-mb-md full-width">
           <div class="text-h6 q-py-md">
-            {{ $t('paymentPlans.subscriptionInfo') }}
+            {{ costSummary.label }}
           </div>
           <q-card>
             <q-list bordered separator>
+              <q-item
+                v-for="item in costSummary.line_items"
+                :key="item.description"
+              >
+                <q-item-section>
+                  <q-item-label>
+                    {{ item.description }}
+                    <span v-if="item.proration" class="text-orange">
+                      (Prorated)</span
+                    >
+                  </q-item-label>
+                </q-item-section>
+                <q-item-section side>
+                  <q-item-label>{{ item.cost_display }}</q-item-label>
+                </q-item-section>
+              </q-item>
+              <q-separator />
               <q-item>
                 <q-item-section>
-                  <q-item-label>{{ currentPeriodEnd }}</q-item-label>
-                  <q-item-label caption>{{
-                    $tc('paymentPlans.renewalDate')
+                  <q-item-label class="text-weight-bold">Total</q-item-label>
+                </q-item-section>
+                <q-item-section side>
+                  <q-item-label class="text-weight-bold">{{
+                    costSummary.total_display
                   }}</q-item-label>
                 </q-item-section>
               </q-item>
-              <q-item>
+              <q-item v-if="costSummary.amount_due !== costSummary.total">
                 <q-item-section>
-                  <q-item-label>{{ signupDate }}</q-item-label>
-                  <q-item-label caption>{{
-                    $tc('paymentPlans.signupDate')
+                  <q-item-label class="text-weight-bold text-orange"
+                    >Amount Due Now</q-item-label
+                  >
+                </q-item-section>
+                <q-item-section side>
+                  <q-item-label class="text-orange text-weight-bold">{{
+                    costSummary.amount_due_display
                   }}</q-item-label>
                 </q-item-section>
               </q-item>
@@ -231,7 +279,7 @@ export default defineComponent({
         .get('/api/billing/membership-plan-cost-summary/')
         .then((result) => {
           if (result.data.success) {
-            this.costSummary = result.data.costs;
+            this.costSummary = result.data.upcoming_invoice;
           }
         })
         .catch(() => {

@@ -595,7 +595,7 @@ class SubscriptionInfo(StripeAPIView):
 
 class MembershipPlanCostSummary(StripeAPIView):
     """
-    get: returns a summary of costs for the selected membership plan.
+    get: returns a summary of costs for the selected membership plan based on upcoming invoice.
     """
 
     def get(self, request):
@@ -608,216 +608,209 @@ class MembershipPlanCostSummary(StripeAPIView):
                 {"success": False, "message": "No membership plan found."}, status=404
             )
 
-        # Base plan cost
-        base_cost = plan.cost
-        base_cost_display = f"${base_cost/100:.2f}"
+        if not profile.stripe_subscription_id:
+            # Fallback to basic plan cost if no subscription exists yet
+            base_cost = plan.cost
+            return Response(
+                {
+                    "success": True,
+                    "upcoming_invoice": {
+                        "label": "Upcoming Invoice",
+                        "line_items": [
+                            {
+                                "description": plan.name or "Base Membership Plan",
+                                "cost": base_cost,
+                                "cost_display": f"${base_cost/100:.2f}",
+                                "proration": False,
+                                "period_start": None,
+                                "period_end": None,
+                            }
+                        ],
+                        "subtotal": base_cost,
+                        "subtotal_display": f"${base_cost/100:.2f}",
+                        "total": base_cost,
+                        "total_display": f"${base_cost/100:.2f}",
+                        "amount_due": base_cost,
+                        "amount_due_display": f"${base_cost/100:.2f}",
+                        "period_start": None,
+                        "period_end": None,
+                        "next_payment_attempt": None,
+                    },
+                }
+            )
 
-        # Get additional member costs from actual Stripe subscription items
-        additional_members_detail = []
-        additional_member_cost = 0
+        try:
+            # Get the upcoming invoice to see actual charges including prorations
+            upcoming_invoice = stripe.Invoice.upcoming(
+                customer=profile.stripe_customer_id,
+                subscription=profile.stripe_subscription_id,
+            )
 
-        if profile.stripe_subscription_id:
+            # Process line items from the upcoming invoice using Stripe's descriptions
+            line_items = []
+
+            for line_item in upcoming_invoice.lines.data:
+                # Use Stripe's description if available, otherwise fall back to our own logic
+                description = line_item.description
+
+                if not description:
+                    # Fallback logic for missing descriptions
+                    if line_item.price and line_item.price.id == plan.stripe_id:
+                        description = plan.name or "Base Membership Plan"
+                    elif (
+                        line_item.price
+                        and hasattr(line_item.price, "metadata")
+                        and line_item.price.metadata
+                    ):
+                        member_id = line_item.price.metadata.get("member_id")
+                        if member_id:
+                            try:
+                                member = Profile.objects.get(id=member_id)
+                                description = (
+                                    f"Additional Member: {member.get_full_name()}"
+                                )
+                            except Profile.DoesNotExist:
+                                description = "Additional Member: Unknown"
+                        else:
+                            # Try to get addon name from our database
+                            try:
+                                addon = SubscriptionAddon.objects.get(
+                                    stripe_price_id=line_item.price.id
+                                )
+                                description = addon.name
+                            except SubscriptionAddon.DoesNotExist:
+                                description = (
+                                    line_item.price.nickname or "Unknown Add-on"
+                                )
+                    else:
+                        description = "Unknown Charge"
+
+                line_items.append(
+                    {
+                        "description": description,
+                        "cost": line_item.amount,
+                        "cost_display": f"${line_item.amount/100:.2f}",
+                        "proration": (
+                            line_item.proration
+                            if hasattr(line_item, "proration")
+                            else False
+                        ),
+                        "period_start": (
+                            line_item.period.start if line_item.period else None
+                        ),
+                        "period_end": (
+                            line_item.period.end if line_item.period else None
+                        ),
+                        "quantity": getattr(line_item, "quantity", 1),
+                    }
+                )
+
+            return Response(
+                {
+                    "success": True,
+                    "upcoming_invoice": {
+                        "label": "Upcoming Invoice",
+                        "line_items": line_items,
+                        "subtotal": upcoming_invoice.subtotal,
+                        "subtotal_display": f"${upcoming_invoice.subtotal/100:.2f}",
+                        "total": upcoming_invoice.total,
+                        "total_display": f"${upcoming_invoice.total/100:.2f}",
+                        "amount_due": upcoming_invoice.amount_due,
+                        "amount_due_display": f"${upcoming_invoice.amount_due/100:.2f}",
+                        "period_start": upcoming_invoice.period_start,
+                        "period_end": upcoming_invoice.period_end,
+                        "next_payment_attempt": upcoming_invoice.next_payment_attempt,
+                    },
+                }
+            )
+
+        except stripe.error.StripeError as e:
+            # Fallback to subscription items if upcoming invoice fails
+            capture_exception(e)
+            logger.error(f"Failed to retrieve upcoming invoice: {str(e)}")
+
             try:
-                # Get the subscription and its items
+                # Get the subscription and its items as fallback
                 subscription = stripe.Subscription.retrieve(
                     profile.stripe_subscription_id, expand=["items"]
                 )
 
+                line_items = []
+
                 # Process each subscription item
                 for item in subscription.items.data:
-                    # Skip the base plan item
+                    # Generate description for each item
                     if item.price.id == plan.stripe_id:
-                        continue
-
-                    # This is an addon item - check if it's an additional member
-                    if hasattr(item.price, "metadata") and item.price.metadata:
-                        member_id = item.price.metadata.get("member_id")
-                        if member_id:
-                            try:
-                                member = Profile.objects.get(id=member_id)
-                                member_cost = item.price.unit_amount * item.quantity
-                                member_cost_display = f"${member_cost/100:.2f}"
-
-                                additional_members_detail.append(
-                                    {
-                                        "name": member.get_full_name(),
-                                        "cost": member_cost,
-                                        "cost_display": member_cost_display,
-                                    }
-                                )
-
-                                additional_member_cost += member_cost
-                            except Profile.DoesNotExist:
-                                # Member not found, but still include the cost
-                                member_cost = item.price.unit_amount * item.quantity
-                                additional_members_detail.append(
-                                    {
-                                        "name": "Unknown Member",
-                                        "cost": member_cost,
-                                        "cost_display": f"${member_cost/100:.2f}",
-                                    }
-                                )
-                                additional_member_cost += member_cost
+                        description = plan.name or "Base Membership Plan"
                     else:
-                        # Generic addon (not a specific member)
-                        addon_cost = item.price.unit_amount * item.quantity
-                        additional_member_cost += addon_cost
+                        # This is an addon item
+                        description = "Unknown Add-on"
 
-                        # Try to get addon name
-                        try:
-                            addon = SubscriptionAddon.objects.get(
-                                stripe_price_id=item.price.id
-                            )
-                            addon_name = addon.name
-                        except SubscriptionAddon.DoesNotExist:
-                            addon_name = item.price.nickname or "Unknown Addon"
+                        if hasattr(item.price, "metadata") and item.price.metadata:
+                            member_id = item.price.metadata.get("member_id")
+                            if member_id:
+                                try:
+                                    member = Profile.objects.get(id=member_id)
+                                    description = (
+                                        f"Additional Member: {member.get_full_name()}"
+                                    )
+                                except Profile.DoesNotExist:
+                                    description = "Additional Member: Unknown"
+                        else:
+                            # Try to get addon name
+                            try:
+                                addon = SubscriptionAddon.objects.get(
+                                    stripe_price_id=item.price.id
+                                )
+                                description = addon.name
+                            except SubscriptionAddon.DoesNotExist:
+                                description = item.price.nickname or "Unknown Add-on"
 
-                        additional_members_detail.append(
-                            {
-                                "name": addon_name,
-                                "cost": addon_cost,
-                                "cost_display": f"${addon_cost/100:.2f}",
-                            }
-                        )
+                    item_cost = item.price.unit_amount * item.quantity
+                    line_items.append(
+                        {
+                            "description": description,
+                            "cost": item_cost,
+                            "cost_display": f"${item_cost/100:.2f}",
+                            "proration": False,
+                            "period_start": None,
+                            "period_end": None,
+                            "quantity": item.quantity,
+                        }
+                    )
 
-            except stripe.error.StripeError as e:
-                # Fallback to manual calculation if Stripe fails
-                capture_exception(e)
-                additional_members_detail = []
-                additional_member_cost = 0
+                total_cost = sum(item["cost"] for item in line_items)
 
-        additional_member_count = len(additional_members_detail)
-        additional_member_cost_display = f"${additional_member_cost/100:.2f}"
-
-        # Total cost per month
-        total_cost = base_cost + additional_member_cost
-        total_cost_display = f"${total_cost/100:.2f}"
-
-        return Response(
-            {
-                "success": True,
-                "costs": {
-                    "base_plan": {
-                        "label": "Base Plan",
-                        "cost": base_cost,
-                        "cost_display": base_cost_display,
-                    },
-                    "additional_members": {
-                        "label": "Additional Members & Addons",
-                        "count": additional_member_count,
-                        "total_cost": additional_member_cost,
-                        "total_cost_display": additional_member_cost_display,
-                        "members": additional_members_detail,
-                    },
-                    "total_per_month": {
-                        "label": "Total Per Month",
-                        "cost": total_cost,
-                        "cost_display": total_cost_display,
-                    },
-                },
-            }
-        )
-
-    """
-    get: returns a summary of costs for the selected membership plan.
-    """
-
-    def get(self, request):
-        # Get the user's current plan
-        profile = request.user.profile
-        plan = profile.membership_plan
-
-        if not plan:
-            return Response(
-                {"success": False, "message": "No membership plan found."}, status=404
-            )
-
-        # Base plan cost
-        base_cost = plan.cost
-        base_cost_display = f"${base_cost/100:.2f}"
-
-        # Calculate additional member costs with individual pricing
-        additional_members_detail = []
-        additional_member_cost = 0
-
-        if profile.billing_group:
-            # Get all members except the primary member
-            additional_members = profile.billing_group.members.exclude(id=profile.id)
-
-            for member in additional_members:
-                # Check if this member has locked pricing
-                from profile.models import BillingGroupMemberAddon
-
-                locked_addons = BillingGroupMemberAddon.objects.filter(
-                    billing_group=profile.billing_group,
-                    member=member,
-                    addon__addon_type="additional_member",
-                )
-
-                member_cost = 0
-                member_cost_display = "$0.00"
-
-                if locked_addons.exists():
-                    # Use locked pricing for this member
-                    for locked_addon in locked_addons:
-                        member_cost += locked_addon.locked_cost
-                    member_cost_display = f"${member_cost/100:.2f}"
-                else:
-                    # Fall back to current addon pricing
-                    addon_id = getattr(config, "CURRENT_ADDITIONAL_MEMBER_ADDON", None)
-                    if addon_id:
-                        try:
-                            addon = SubscriptionAddon.objects.get(
-                                id=addon_id,
-                                addon_type="additional_member",
-                                visible=True,
-                            )
-                            member_cost = addon.cost
-                            member_cost_display = f"${member_cost/100:.2f}"
-                        except SubscriptionAddon.DoesNotExist:
-                            pass
-
-                additional_members_detail.append(
+                return Response(
                     {
-                        "name": member.get_full_name(),
-                        "cost": member_cost,
-                        "cost_display": member_cost_display,
+                        "success": True,
+                        "upcoming_invoice": {
+                            "label": "Upcoming Invoice",
+                            "line_items": line_items,
+                            "subtotal": total_cost,
+                            "subtotal_display": f"${total_cost/100:.2f}",
+                            "total": total_cost,
+                            "total_display": f"${total_cost/100:.2f}",
+                            "amount_due": total_cost,
+                            "amount_due_display": f"${total_cost/100:.2f}",
+                            "period_start": None,
+                            "period_end": None,
+                            "next_payment_attempt": None,
+                        },
+                        "fallback": True,
+                        "error": "Could not retrieve upcoming invoice data",
                     }
                 )
 
-                additional_member_cost += member_cost
-
-        additional_member_count = len(additional_members_detail)
-        additional_member_cost_display = f"${additional_member_cost/100:.2f}"
-
-        # Total cost per month
-        total_cost = base_cost + additional_member_cost
-        total_cost_display = f"${total_cost/100:.2f}"
-
-        return Response(
-            {
-                "success": True,
-                "costs": {
-                    "base_plan": {
-                        "label": "Base Plan",
-                        "cost": base_cost,
-                        "cost_display": base_cost_display,
+            except stripe.error.StripeError as fallback_error:
+                capture_exception(fallback_error)
+                return Response(
+                    {
+                        "success": False,
+                        "message": "Error retrieving billing information",
                     },
-                    "additional_members": {
-                        "label": "Additional Members",
-                        "count": additional_member_count,
-                        "total_cost": additional_member_cost,
-                        "total_cost_display": additional_member_cost_display,
-                        "members": additional_members_detail,
-                    },
-                    "total_per_month": {
-                        "label": "Total Per Month",
-                        "cost": total_cost,
-                        "cost_display": total_cost_display,
-                    },
-                },
-            }
-        )
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
 
 
 class PaymentPlanResumeCancel(StripeAPIView):

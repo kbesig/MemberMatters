@@ -71,8 +71,16 @@
             </template>
             <template v-slot:body-cell-locked_pricing="props">
               <q-td :props="props">
+                <!-- Show --- for the primary member (owner) -->
                 <div
-                  v-if="
+                  v-if="props.row.id === billingGroup.primary_member?.id"
+                  class="text-grey-6"
+                >
+                  ---
+                </div>
+                <!-- Show locked pricing for other members -->
+                <div
+                  v-else-if="
                     props.row.locked_addon_pricing &&
                     props.row.locked_addon_pricing.length > 0
                   "

@@ -593,7 +593,131 @@ class SubscriptionInfo(StripeAPIView):
             return Response({"success": False})
 
 
-class MembershipPlanCostSummary(APIView):
+class MembershipPlanCostSummary(StripeAPIView):
+    """
+    get: returns a summary of costs for the selected membership plan.
+    """
+
+    def get(self, request):
+        # Get the user's current plan
+        profile = request.user.profile
+        plan = profile.membership_plan
+
+        if not plan:
+            return Response(
+                {"success": False, "message": "No membership plan found."}, status=404
+            )
+
+        # Base plan cost
+        base_cost = plan.cost
+        base_cost_display = f"${base_cost/100:.2f}"
+
+        # Get additional member costs from actual Stripe subscription items
+        additional_members_detail = []
+        additional_member_cost = 0
+
+        if profile.stripe_subscription_id:
+            try:
+                # Get the subscription and its items
+                subscription = stripe.Subscription.retrieve(
+                    profile.stripe_subscription_id, expand=["items"]
+                )
+
+                # Process each subscription item
+                for item in subscription.items.data:
+                    # Skip the base plan item
+                    if item.price.id == plan.stripe_id:
+                        continue
+
+                    # This is an addon item - check if it's an additional member
+                    if hasattr(item.price, "metadata") and item.price.metadata:
+                        member_id = item.price.metadata.get("member_id")
+                        if member_id:
+                            try:
+                                member = Profile.objects.get(id=member_id)
+                                member_cost = item.price.unit_amount * item.quantity
+                                member_cost_display = f"${member_cost/100:.2f}"
+
+                                additional_members_detail.append(
+                                    {
+                                        "name": member.get_full_name(),
+                                        "cost": member_cost,
+                                        "cost_display": member_cost_display,
+                                    }
+                                )
+
+                                additional_member_cost += member_cost
+                            except Profile.DoesNotExist:
+                                # Member not found, but still include the cost
+                                member_cost = item.price.unit_amount * item.quantity
+                                additional_members_detail.append(
+                                    {
+                                        "name": "Unknown Member",
+                                        "cost": member_cost,
+                                        "cost_display": f"${member_cost/100:.2f}",
+                                    }
+                                )
+                                additional_member_cost += member_cost
+                    else:
+                        # Generic addon (not a specific member)
+                        addon_cost = item.price.unit_amount * item.quantity
+                        additional_member_cost += addon_cost
+
+                        # Try to get addon name
+                        try:
+                            addon = SubscriptionAddon.objects.get(
+                                stripe_price_id=item.price.id
+                            )
+                            addon_name = addon.name
+                        except SubscriptionAddon.DoesNotExist:
+                            addon_name = item.price.nickname or "Unknown Addon"
+
+                        additional_members_detail.append(
+                            {
+                                "name": addon_name,
+                                "cost": addon_cost,
+                                "cost_display": f"${addon_cost/100:.2f}",
+                            }
+                        )
+
+            except stripe.error.StripeError as e:
+                # Fallback to manual calculation if Stripe fails
+                capture_exception(e)
+                additional_members_detail = []
+                additional_member_cost = 0
+
+        additional_member_count = len(additional_members_detail)
+        additional_member_cost_display = f"${additional_member_cost/100:.2f}"
+
+        # Total cost per month
+        total_cost = base_cost + additional_member_cost
+        total_cost_display = f"${total_cost/100:.2f}"
+
+        return Response(
+            {
+                "success": True,
+                "costs": {
+                    "base_plan": {
+                        "label": "Base Plan",
+                        "cost": base_cost,
+                        "cost_display": base_cost_display,
+                    },
+                    "additional_members": {
+                        "label": "Additional Members & Addons",
+                        "count": additional_member_count,
+                        "total_cost": additional_member_cost,
+                        "total_cost_display": additional_member_cost_display,
+                        "members": additional_members_detail,
+                    },
+                    "total_per_month": {
+                        "label": "Total Per Month",
+                        "cost": total_cost,
+                        "cost_display": total_cost_display,
+                    },
+                },
+            }
+        )
+
     """
     get: returns a summary of costs for the selected membership plan.
     """
@@ -1309,11 +1433,55 @@ class MemberBillingGroupManagement(APIView):
         )
 
 
-class MemberBillingGroupMemberManagement(APIView):
+class MemberBillingGroupMemberManagement(StripeAPIView):
     """
     post: sends an invitation to join the current user's billing group.
     delete: removes a member from the current user's billing group.
     """
+
+    def _remove_stripe_subscription_item_for_member(
+        self, member_profile, billing_group, requesting_user
+    ):
+        """
+        Remove Stripe subscription items for a member leaving a billing group.
+        """
+        try:
+            from profile.models import BillingGroupMemberAddon
+
+            # Get all locked addon records for this member
+            locked_addons = BillingGroupMemberAddon.objects.filter(
+                billing_group=billing_group, member=member_profile
+            )
+
+            for locked_addon in locked_addons:
+                if locked_addon.stripe_subscription_item_id:
+                    try:
+                        # Remove the subscription item from Stripe
+                        stripe.SubscriptionItem.delete(
+                            locked_addon.stripe_subscription_item_id,
+                            proration_behavior="create_prorations",
+                        )
+
+                        requesting_user.log_event(
+                            f"Removed Stripe subscription item for {member_profile.get_full_name()} - {locked_addon.addon.name}",
+                            "billing_group",
+                        )
+                    except stripe.error.InvalidRequestError as e:
+                        # Subscription item might already be deleted
+                        requesting_user.log_event(
+                            f"Stripe subscription item for {member_profile.get_full_name()} was already deleted or not found",
+                            "billing_group",
+                        )
+
+                # Clean up the locked addon record
+                locked_addon.delete()
+
+        except Exception as e:
+            requesting_user.log_event(
+                f"Error removing Stripe subscription item for {member_profile.get_full_name()}: {str(e)}",
+                "billing_group",
+            )
+            capture_exception(e)
 
     def _lock_addon_pricing_for_invited_member(
         self, member_profile, billing_group, requesting_user
@@ -1539,13 +1707,15 @@ class MemberBillingGroupMemberManagement(APIView):
         elif member_profile.billing_group == user_profile.billing_group:
             # This is an actual member - remove them
             billing_group_name = user_profile.billing_group.name
-            member_profile.billing_group = None
-            member_profile.save()
 
-            # Remove any locked pricing for this member
-            self._remove_addon_pricing_for_invited_member(
+            # First remove Stripe subscription items for this member
+            self._remove_stripe_subscription_item_for_member(
                 member_profile, user_profile.billing_group, request.user
             )
+
+            # Then remove them from the billing group
+            member_profile.billing_group = None
+            member_profile.save()
 
             action = "Removed"
 
@@ -1566,10 +1736,132 @@ class MemberBillingGroupMemberManagement(APIView):
         return Response({"success": True})
 
 
-class MemberBillingGroupInviteResponse(APIView):
+class MemberBillingGroupInviteResponse(StripeAPIView):
     """
     post: accepts or declines a billing group invitation.
     """
+
+    def _create_stripe_subscription_item_for_member(
+        self, member_profile, billing_group, requesting_user
+    ):
+        """
+        Create a Stripe subscription item for an additional member in a billing group.
+        Uses the locked pricing from BillingGroupMemberAddon.
+        """
+        try:
+            from profile.models import BillingGroupMemberAddon
+
+            # Get the primary member's subscription
+            primary_member = billing_group.primary_member
+            if not primary_member.stripe_subscription_id:
+                requesting_user.log_event(
+                    f"Cannot create subscription item for {member_profile.get_full_name()} - primary member has no active subscription",
+                    "billing_group",
+                )
+                return None
+
+            # Get the locked addon pricing for this member
+            locked_addons = BillingGroupMemberAddon.objects.filter(
+                billing_group=billing_group,
+                member=member_profile,
+                addon__addon_type="additional_member",
+            )
+
+            for locked_addon in locked_addons:
+                # Create a Stripe price object for this member's locked pricing
+                stripe_price = stripe.Price.create(
+                    currency=locked_addon.locked_currency.lower(),
+                    unit_amount=locked_addon.locked_cost,
+                    recurring={
+                        "interval": locked_addon.locked_interval,
+                        "interval_count": locked_addon.locked_interval_count,
+                    },
+                    product_data={
+                        "name": f"Additional Member: {member_profile.get_full_name()}",
+                        "metadata": {
+                            "billing_group_id": str(billing_group.id),
+                            "member_id": str(member_profile.id),
+                            "addon_id": str(locked_addon.addon.id),
+                        },
+                    },
+                    metadata={
+                        "billing_group_id": str(billing_group.id),
+                        "member_id": str(member_profile.id),
+                        "addon_id": str(locked_addon.addon.id),
+                    },
+                )
+
+                # Add the subscription item to the primary member's subscription
+                subscription_item = stripe.SubscriptionItem.create(
+                    subscription=primary_member.stripe_subscription_id,
+                    price=stripe_price.id,
+                    quantity=1,
+                    proration_behavior="create_prorations",
+                )
+
+                # Store the Stripe subscription item ID in the locked addon record
+                locked_addon.stripe_subscription_item_id = subscription_item.id
+                locked_addon.stripe_price_id = stripe_price.id
+                locked_addon.save()
+
+                requesting_user.log_event(
+                    f"Created Stripe subscription item for {member_profile.get_full_name()} - {locked_addon.addon.name} at ${locked_addon.locked_cost/100:.2f}/{locked_addon.locked_interval}",
+                    "billing_group",
+                )
+
+                return subscription_item.id
+
+        except Exception as e:
+            requesting_user.log_event(
+                f"Error creating Stripe subscription item for {member_profile.get_full_name()}: {str(e)}",
+                "billing_group",
+            )
+            capture_exception(e)
+            return None
+
+    def _remove_stripe_subscription_item_for_member(
+        self, member_profile, billing_group, requesting_user
+    ):
+        """
+        Remove Stripe subscription items for a member leaving a billing group.
+        """
+        try:
+            from profile.models import BillingGroupMemberAddon
+
+            # Get all locked addon records for this member
+            locked_addons = BillingGroupMemberAddon.objects.filter(
+                billing_group=billing_group, member=member_profile
+            )
+
+            for locked_addon in locked_addons:
+                if locked_addon.stripe_subscription_item_id:
+                    try:
+                        # Remove the subscription item from Stripe
+                        stripe.SubscriptionItem.delete(
+                            locked_addon.stripe_subscription_item_id,
+                            proration_behavior="create_prorations",
+                        )
+
+                        requesting_user.log_event(
+                            f"Removed Stripe subscription item for {member_profile.get_full_name()} - {locked_addon.addon.name}",
+                            "billing_group",
+                        )
+                    except stripe.error.InvalidRequestError as e:
+                        # Subscription item might already be deleted
+                        requesting_user.log_event(
+                            f"Stripe subscription item for {member_profile.get_full_name()} was already deleted or not found",
+                            "billing_group",
+                        )
+
+                # Clean up the locked addon record
+                locked_addon.delete()
+
+        except Exception as e:
+            requesting_user.log_event(
+                f"Error removing Stripe subscription item for {member_profile.get_full_name()}: {str(e)}",
+                "billing_group",
+            )
+            capture_exception(e)
 
     def _lock_addon_pricing_for_member(
         self, member_profile, billing_group, requesting_user
@@ -1698,13 +1990,21 @@ class MemberBillingGroupInviteResponse(APIView):
             user_profile.billing_group_invite = None
             user_profile.save()
 
-            # Note: Addon pricing was already locked when the invitation was sent,
-            # so we don't need to lock it again here
-
-            request.user.log_event(
-                f"Accepted invitation to billing group '{billing_group.name}'",
-                "billing_group",
+            # Create Stripe subscription item for this member
+            subscription_item_id = self._create_stripe_subscription_item_for_member(
+                user_profile, billing_group, request.user
             )
+
+            if subscription_item_id:
+                request.user.log_event(
+                    f"Accepted invitation to billing group '{billing_group.name}' and created Stripe subscription item",
+                    "billing_group",
+                )
+            else:
+                request.user.log_event(
+                    f"Accepted invitation to billing group '{billing_group.name}' but failed to create Stripe subscription item",
+                    "billing_group",
+                )
 
         else:  # decline
             # Remove invitation and any locked addon pricing

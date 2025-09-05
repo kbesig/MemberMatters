@@ -366,6 +366,20 @@ class BillingGroupMemberAddon(
     locked_interval_count = models.IntegerField(default=1)
     date_locked = models.DateTimeField(auto_now_add=True)
 
+    # Stripe integration fields
+    stripe_subscription_item_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Stripe subscription item ID for this member's addon",
+    )
+    stripe_price_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Stripe price ID created for this member's locked pricing",
+    )
+
     class Meta:
         verbose_name = "Billing Group Member Add-on"
         verbose_name_plural = "Billing Group Member Add-ons"

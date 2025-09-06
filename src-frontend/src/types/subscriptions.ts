@@ -4,6 +4,8 @@ export const SubscriptionStateSchema = z.enum([
   'inactive',
   'active',
   'cancelling',
+  'group_active',
+  'group_inactive',
 ]);
 export type SubscriptionState = z.infer<typeof SubscriptionStateSchema>;
 

@@ -404,6 +404,8 @@ class ProfileDetail(generics.GenericAPIView):
                     else None if p.membership_plan else None
                 ),
                 "subscriptionState": p.subscription_status,
+                "effectiveSubscriptionState": p.get_effective_subscription_status(),
+                "hasActiveSubscription": p.has_active_subscription(),
             },
             "permissions": {"staff": user.is_staff},
             "billingGroup": (

@@ -48,6 +48,18 @@
           </q-banner>
         </div>
 
+        <!-- Group member inactive warning -->
+        <div v-if="subscriptionStatus === 'group_inactive'" class="row q-mb-md">
+          <q-banner class="bg-warning text-white">
+            <div class="text-h5">Group Subscription Issue</div>
+            <p>
+              The primary member's subscription for your billing group has been
+              cancelled or failed. Please contact your group administrator or us
+              for assistance.
+            </p>
+          </q-banner>
+        </div>
+
         <!-- Subscription Info and Cost Summary side by side -->
         <div
           v-if="
@@ -193,7 +205,7 @@
         </div>
 
         <q-btn
-          v-if="subscriptionStatus === 'active'"
+          v-if="['active', 'group_active'].includes(subscriptionStatus)"
           :disable="disableButton"
           :loading="loadingButton"
           @click="cancelPlan"

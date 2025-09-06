@@ -414,6 +414,8 @@ class Profile(ExportModelOperationsMixin("profile"), models.Model):
         ("inactive", "Inactive"),
         ("active", "Active"),
         ("cancelling", "Cancelling"),
+        ("group_active", "Group Member (Active)"),
+        ("group_inactive", "Group Member (Inactive)"),
     )
 
     class Meta:
@@ -501,7 +503,7 @@ class Profile(ExportModelOperationsMixin("profile"), models.Model):
         max_length=100, blank=True, null=True, default=""
     )
     subscription_status = models.CharField(
-        max_length=10, default="inactive", choices=SUBSCRIPTION_STATES
+        max_length=20, default="inactive", choices=SUBSCRIPTION_STATES
     )
     subscription_first_created = models.DateTimeField(
         default=None, blank=True, null=True, editable=False
@@ -607,6 +609,35 @@ class Profile(ExportModelOperationsMixin("profile"), models.Model):
 
     def get_logs(self):
         return UserEventLog.objects.filter(user=self.user)
+
+    def has_active_subscription(self):
+        """
+        Returns True if the member has an active subscription, either individual or through a billing group.
+        """
+        return self.subscription_status in ["active", "group_active"]
+
+    def get_effective_subscription_status(self):
+        """
+        Returns the effective subscription status, considering billing group membership.
+        Primary members keep their own subscription status, secondary members get group status.
+        """
+        # If user is not in a billing group, return their own status
+        if not self.billing_group or not self.billing_group.primary_member:
+            return self.subscription_status
+
+        # If user is the primary member, return their own status
+        if self.billing_group.primary_member == self:
+            return self.subscription_status
+
+        # If user is a secondary member, return group status based on primary member's status
+        primary_member = self.billing_group.primary_member
+        if primary_member.subscription_status == "active":
+            return "group_active"
+        elif primary_member.subscription_status in ["inactive", "cancelling"]:
+            return "group_inactive"
+
+        # Fallback to their own status
+        return self.subscription_status
 
     def get_full_name(self):
         return self.first_name + " " + self.last_name

@@ -474,6 +474,8 @@ export default {
       active: 'Aktiv',
       inactive: 'Inaktiv',
       cancelling: 'Avbruten',
+      group_active: 'Gruppmedlem (Aktiv)',
+      group_inactive: 'Gruppmedlem (Inaktiv)',
     },
     memberStatusString: {
       noob: 'Ny medlem',

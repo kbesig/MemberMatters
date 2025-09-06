@@ -481,6 +481,8 @@ export default {
       active: 'Active',
       inactive: 'Inactive',
       cancelling: 'Cancelling',
+      group_active: 'Group Member (Active)',
+      group_inactive: 'Group Member (Inactive)',
     },
     memberStatusString: {
       noob: 'New Member',

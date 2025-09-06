@@ -1117,6 +1117,16 @@ class StripeWebhook(StripeAPIView):
                 member_profile.subscription_status = "active"
                 member_profile.save()
 
+                # Update billing group members if this is a primary member
+                if hasattr(member_profile, "primary_billing_groups"):
+                    for billing_group in member_profile.primary_billing_groups.all():
+                        # Update all members in the billing group to group_active
+                        for group_member in billing_group.members.exclude(
+                            id=member_profile.id
+                        ):
+                            group_member.subscription_status = "group_active"
+                            group_member.save()
+
                 # activate their access card
                 member_profile.activate()
 
@@ -1140,6 +1150,16 @@ class StripeWebhook(StripeAPIView):
 
                 member_profile.subscription_status = "active"
                 member_profile.save()
+
+                # Update billing group members if this is a primary member
+                if hasattr(member_profile, "primary_billing_groups"):
+                    for billing_group in member_profile.primary_billing_groups.all():
+                        # Update all members in the billing group to group_active
+                        for group_member in billing_group.members.exclude(
+                            id=member_profile.id
+                        ):
+                            group_member.subscription_status = "group_active"
+                            group_member.save()
 
                 # if this is a returning member then send the exec an email (new members have
                 # already had this sent)
@@ -1188,6 +1208,26 @@ class StripeWebhook(StripeAPIView):
             member_profile.stripe_subscription_id = None
             member_profile.subscription_status = "inactive"
             member_profile.save()
+
+            # Update billing group members if this is a primary member
+            if hasattr(member_profile, "primary_billing_groups"):
+                for billing_group in member_profile.primary_billing_groups.all():
+                    # Update all members in the billing group to group_inactive
+                    for group_member in billing_group.members.exclude(
+                        id=member_profile.id
+                    ):
+                        group_member.subscription_status = "group_inactive"
+                        group_member.save()
+
+                        # Send notification to group members
+                        group_subject = f"Billing group '{billing_group.name}' subscription cancelled"
+                        group_message = (
+                            f"The subscription for billing group '{billing_group.name}' has been cancelled. "
+                            f"Your access may be affected. Please contact the group administrator or us for assistance."
+                        )
+                        group_member.user.email_notification(
+                            group_subject, group_message
+                        )
 
             member_profile.user.log_event(
                 "Membership was cancelled due to Stripe subscription ending", "stripe"
@@ -1790,7 +1830,8 @@ class MemberBillingGroupInviteResponse(StripeAPIView):
                     # Update profile to reflect the cancellation
                     member_profile.stripe_subscription_id = None
                     member_profile.membership_plan = None
-                    member_profile.subscription_status = "inactive"
+                    # Don't set to inactive here since they're joining a billing group
+                    # The calling code will set to group_active
                     member_profile.save()
                     return True
 
@@ -1802,7 +1843,8 @@ class MemberBillingGroupInviteResponse(StripeAPIView):
                 )
                 member_profile.stripe_subscription_id = None
                 member_profile.membership_plan = None
-                member_profile.subscription_status = "inactive"
+                # Don't set to inactive here since they're joining a billing group
+                # The calling code will set to group_active
                 member_profile.save()
                 return True
 
@@ -1816,7 +1858,8 @@ class MemberBillingGroupInviteResponse(StripeAPIView):
             # Update the profile to reflect the cancellation
             member_profile.stripe_subscription_id = None
             member_profile.membership_plan = None
-            member_profile.subscription_status = "inactive"
+            # Don't set to inactive here since they're joining a billing group
+            # The calling code will set to group_active
             member_profile.save()
 
             requesting_user.log_event(
@@ -2105,6 +2148,8 @@ class MemberBillingGroupInviteResponse(StripeAPIView):
             # Add user to billing group
             user_profile.billing_group = billing_group
             user_profile.billing_group_invite = None
+            # Set subscription status to group_active since they're now covered by the primary member's subscription
+            user_profile.subscription_status = "group_active"
             user_profile.save()
 
             # Create Stripe subscription item for this member
@@ -2214,6 +2259,8 @@ class MemberBillingGroupLeave(StripeAPIView):
 
         # Remove user from billing group
         user_profile.billing_group = None
+        # Set subscription status to inactive since they no longer have any subscription
+        user_profile.subscription_status = "inactive"
         user_profile.save()
 
         request.user.log_event(

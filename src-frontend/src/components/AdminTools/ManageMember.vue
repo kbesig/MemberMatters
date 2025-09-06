@@ -633,9 +633,13 @@
                       lines="1"
                       :class="{
                         inactive: billing.subscription.status === 'inactive',
-                        active: billing.subscription.status === 'active',
+                        active: ['active', 'group_active'].includes(
+                          billing.subscription.status
+                        ),
                         cancelling:
                           billing.subscription.status === 'cancelling',
+                        'group-inactive':
+                          billing.subscription.status === 'group_inactive',
                       }"
                     >
                       {{
@@ -1817,6 +1821,10 @@ export default defineComponent({
 
 .cancelling {
   color: orange;
+}
+
+.group-inactive {
+  color: #ff6b35; /* Orange-red for group members with inactive primary subscription */
 }
 
 .q-field__after,

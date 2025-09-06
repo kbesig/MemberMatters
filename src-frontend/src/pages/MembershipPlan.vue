@@ -4,8 +4,18 @@
       <q-spinner size="4em" />
     </template>
 
-    <template v-else-if="!currentPlan">
+    <template v-else-if="!currentPlan && !isInBillingGroup">
       <select-tier />
+    </template>
+
+    <template v-else-if="!currentPlan && isInBillingGroup">
+      <!-- Show billing group info for users in billing groups without individual plans -->
+      <div class="q-mb-md full-width">
+        <div class="text-h6 q-py-md">
+          {{ $t('billing.youAreInBillingGroup') }}
+        </div>
+        <billing-group-manager />
+      </div>
     </template>
 
     <template v-else>
@@ -246,6 +256,10 @@ export default defineComponent({
       } else {
         return false;
       }
+    },
+    isInBillingGroup() {
+      // Check if user is in a billing group - the backend returns null when not in a group
+      return !!this.profile?.billingGroup;
     },
     cardExists() {
       return this?.profile?.financial?.memberBucks?.savedCard?.last4;

@@ -546,6 +546,16 @@ export default {
     confirmAcceptInvite: 'Confirm Invitation Acceptance',
     subscriptionCancellationWarning:
       "Warning: You currently have an active individual subscription. If you accept this invitation, your current subscription will be cancelled immediately with proration for any remaining time, and you will join the billing group's shared subscription. This action cannot be undone. Do you want to proceed?",
+    membershipPaidBy: 'Your membership is paid for by {name}',
+    youAreInBillingGroup: 'You are in a billing group',
+    leaveBillingGroup: 'Leave Billing Group',
+    leaveBillingGroupConfirm:
+      'Are you sure you want to leave the billing group "{name}"?',
+    leaveBillingGroupWarning:
+      'This will remove you from the shared billing and you will no longer have an active subscription.',
+    leaveBillingGroupRedirect:
+      'You will be redirected to select a new membership plan after leaving.',
+    leftBillingGroup: 'Successfully left the billing group',
     lockedAddonPricing: 'Locked Addon Pricing',
     lockedOn: 'Locked on',
     noLockedPricing: 'No locked pricing',

@@ -2139,3 +2139,91 @@ class MemberBillingGroupInviteResponse(StripeAPIView):
             )
 
         return Response({"success": True})
+
+
+class MemberBillingGroupLeave(StripeAPIView):
+    """
+    post: allows a member to leave their current billing group.
+    """
+
+    def post(self, request):
+        user_profile = request.user.profile
+
+        # Check if user is in a billing group
+        if not user_profile.billing_group:
+            return Response(
+                {
+                    "success": False,
+                    "message": "You are not a member of any billing group.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        billing_group = user_profile.billing_group
+
+        # Check if user is the primary member
+        if billing_group.primary_member == user_profile:
+            return Response(
+                {
+                    "success": False,
+                    "message": "Primary members cannot leave the billing group. You must delete the group or transfer ownership first.",
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        billing_group_name = billing_group.name
+
+        # Remove Stripe subscription items for this member
+        try:
+            from profile.models import BillingGroupMemberAddon
+
+            # Get all locked addon records for this member
+            locked_addons = BillingGroupMemberAddon.objects.filter(
+                billing_group=billing_group, member=user_profile
+            )
+
+            for locked_addon in locked_addons:
+                if locked_addon.stripe_subscription_item_id:
+                    try:
+                        # Remove the subscription item from Stripe
+                        stripe.SubscriptionItem.delete(
+                            locked_addon.stripe_subscription_item_id,
+                            proration_behavior="create_prorations",
+                        )
+
+                        request.user.log_event(
+                            f"Removed Stripe subscription item when leaving billing group - {locked_addon.addon.name}",
+                            "billing_group",
+                        )
+                    except stripe.error.InvalidRequestError:
+                        # Subscription item might already be deleted
+                        request.user.log_event(
+                            f"Stripe subscription item was already deleted when leaving billing group",
+                            "billing_group",
+                        )
+
+                # Clean up the locked addon record
+                locked_addon.delete()
+
+        except Exception as e:
+            request.user.log_event(
+                f"Error removing Stripe subscription items when leaving billing group: {str(e)}",
+                "billing_group",
+            )
+            capture_exception(e)
+
+        # Remove user from billing group
+        user_profile.billing_group = None
+        user_profile.save()
+
+        request.user.log_event(
+            f"Left billing group '{billing_group_name}'",
+            "billing_group",
+        )
+
+        return Response(
+            {
+                "success": True,
+                "message": f"Successfully left billing group '{billing_group_name}'",
+            }
+        )

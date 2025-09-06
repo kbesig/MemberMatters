@@ -406,6 +406,26 @@ class ProfileDetail(generics.GenericAPIView):
                 "subscriptionState": p.subscription_status,
             },
             "permissions": {"staff": user.is_staff},
+            "billingGroup": (
+                {
+                    "name": p.billing_group.name if p.billing_group else None,
+                    "head": (
+                        p.billing_group.get_head().get_full_name()
+                        if p.billing_group
+                        else None
+                    ),
+                    "members": (
+                        [
+                            {"name": member.get_full_name(), "id": member.user.id}
+                            for member in p.billing_group.get_members()
+                        ]
+                        if p.billing_group
+                        else []
+                    ),
+                }
+                if p.billing_group
+                else None
+            ),
         }
 
         return Response(response)

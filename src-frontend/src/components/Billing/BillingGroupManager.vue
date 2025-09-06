@@ -142,9 +142,23 @@
         </q-card-section>
 
         <q-card-section v-else>
-          <div class="text-body1">
+          <div class="text-body1 q-mb-md">
             {{ $t('billing.memberOfGroup') }}
           </div>
+          <div class="text-body2 text-grey-7 q-mb-md">
+            {{
+              $t('billing.membershipPaidBy', {
+                name: billingGroup.primary_member?.name,
+              })
+            }}
+          </div>
+          <q-btn
+            :label="$t('billing.button.leaveBillingGroup')"
+            color="negative"
+            outline
+            @click="openLeaveBillingGroupDialog"
+            :loading="loading"
+          />
         </q-card-section>
       </q-card>
     </div>
@@ -258,6 +272,46 @@
         </q-card-section>
       </q-card>
     </q-dialog>
+
+    <!-- Leave Billing Group Dialog -->
+    <q-dialog v-model="showLeaveBillingGroupDialog" persistent>
+      <q-card style="min-width: 400px">
+        <q-card-section>
+          <div class="text-h6">{{ $t('billing.leaveBillingGroup') }}</div>
+        </q-card-section>
+
+        <q-card-section>
+          <div class="text-body1 q-mb-md">
+            {{
+              $t('billing.leaveBillingGroupConfirm', {
+                name: billingGroup?.name,
+              })
+            }}
+          </div>
+          <div class="text-body2 text-warning q-mb-md">
+            {{ $t('billing.leaveBillingGroupWarning') }}
+          </div>
+          <div class="text-body2 text-info">
+            {{ $t('billing.leaveBillingGroupRedirect') }}
+          </div>
+        </q-card-section>
+
+        <q-card-section class="row justify-end q-gutter-sm">
+          <q-btn
+            :label="$t('billing.button.cancel')"
+            color="grey"
+            @click="showLeaveBillingGroupDialog = false"
+            flat
+          />
+          <q-btn
+            :label="$t('billing.button.leaveBillingGroup')"
+            color="negative"
+            @click="leaveBillingGroup"
+            :loading="loading"
+          />
+        </q-card-section>
+      </q-card>
+    </q-dialog>
   </div>
 </template>
 
@@ -273,6 +327,7 @@ export default defineComponent({
       showCreateDialog: false,
       showAddMemberDialog: false,
       showDeleteDialog: false,
+      showLeaveBillingGroupDialog: false,
       billingGroup: null,
       pendingInvite: null,
       createForm: {
@@ -477,6 +532,8 @@ export default defineComponent({
                 : this.$t('billing.inviteDeclined'),
           });
           await this.loadBillingGroupInfo();
+          // Refresh the profile data to update billing group status on the parent page
+          await this.$store.dispatch('profile/getProfile');
         } else {
           this.$q.notify({
             type: 'negative',
@@ -506,6 +563,46 @@ export default defineComponent({
           });
           this.showDeleteDialog = false;
           await this.loadBillingGroupInfo();
+        } else {
+          this.$q.notify({
+            type: 'negative',
+            message: response.data.message || this.$t('error.requestFailed'),
+          });
+        }
+      } catch (error) {
+        this.$q.notify({
+          type: 'negative',
+          message: this.$t('error.requestFailed'),
+        });
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    openLeaveBillingGroupDialog() {
+      this.showLeaveBillingGroupDialog = true;
+    },
+
+    async leaveBillingGroup() {
+      this.loading = true;
+      try {
+        const response = await this.$axios.post(
+          '/api/billing/billing-group/leave/'
+        );
+        if (response.data.success) {
+          this.$q.notify({
+            type: 'positive',
+            message:
+              response.data.message || this.$t('billing.leftBillingGroup'),
+          });
+          this.showLeaveBillingGroupDialog = false;
+
+          // Refresh profile to update subscription status
+          await this.$store.dispatch('profile/getProfile');
+
+          // Navigate to membership plan selection page
+          // since they no longer have a subscription
+          this.$router.push({ name: 'membershipPlan' });
         } else {
           this.$q.notify({
             type: 'negative',

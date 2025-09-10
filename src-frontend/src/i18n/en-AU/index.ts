@@ -529,6 +529,29 @@ export default {
     inviteCount: 'Invite Count',
     selectPrimaryMember: 'Select Primary Member',
     billingGroupActions: 'Billing Group Actions',
+    billingGroupAdminView: 'Billing Group Admin View',
+    billingGroupMemberView: 'Billing Group Member View',
+    adminBillingGroupControl:
+      'As an admin, you have full control over this billing group and can manage all members.',
+    primaryMemberAdminInfo:
+      'You are the primary member of this billing group and can manage its members.',
+    noBillingGroupDescription:
+      'This member is not currently in a billing group. You can create one or add them to an existing group.',
+    manageBillingGroup: 'Manage Billing Group',
+    addMember: 'Add Member',
+    removeMember: 'Remove Member',
+    selectMember: 'Select Member',
+    memberRequired: 'Please select a member',
+    memberName: 'Member Name',
+    email: 'Email',
+    status: 'Status',
+    actions: 'Actions',
+    member: 'Member',
+    invited: 'Invited',
+    cancelInvite: 'Cancel Invite',
+    inviteCancelled: 'Invite cancelled successfully',
+    navigateToPrimaryMemberMessage:
+      'Primary member: {primaryMemberName}. Use the member search to find and manage them.',
 
     addons: {
       title: 'Add-ons',

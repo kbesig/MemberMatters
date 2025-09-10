@@ -410,108 +410,6 @@
           </div>
         </q-tab-panel>
 
-        <q-tab-panel name="billingGroup">
-          <div class="column q-gutter-y-sm full-width">
-            <div class="row justify-between items-center q-mb-md">
-              <h6 class="q-mt-md q-mb-sm">
-                {{
-                  selectedMember.billingGroup?.name ||
-                  $t('adminTools.noBillingGroup')
-                }}
-              </h6>
-
-              <div class="row q-gutter-sm">
-                <q-btn
-                  v-if="!selectedMember.billingGroup"
-                  :label="$t('adminTools.createBillingGroup')"
-                  color="primary"
-                  @click="showCreateBillingGroupDialog = true"
-                />
-                <q-btn
-                  v-else
-                  :label="$t('adminTools.editBillingGroup')"
-                  color="secondary"
-                  @click="showEditBillingGroupDialog = true"
-                />
-              </div>
-            </div>
-
-            <div
-              v-if="selectedMember.billingGroup"
-              class="text-subtitle2 q-mb-sm"
-            >
-              {{ $t('adminTools.billingGroupHead') }}:
-              {{ selectedMember.billingGroup?.head || $t('error.noValue') }}
-            </div>
-
-            <div v-if="selectedMember.billingGroup" class="text-h6 q-mb-sm">
-              {{ $t('adminTools.billingGroupMembers') }}
-            </div>
-
-            <q-table
-              v-if="selectedMember.billingGroup"
-              :rows="selectedMember.billingGroup?.members || []"
-              :columns="[
-                {
-                  name: 'name',
-                  label: $t('adminTools.billingGroupMemberName'),
-                  field: (row) => row.name,
-                  sortable: true,
-                },
-              ]"
-              row-key="id"
-              v-model:pagination="pagination"
-              :loading="loading"
-              :grid="$q.screen.xs"
-            >
-              <template v-slot:body="props">
-                <q-tr :props="props">
-                  <q-td key="name" :props="props">
-                    <router-link
-                      :to="{
-                        name: 'manageMember',
-                        params: { memberId: props.row.id },
-                      }"
-                    >
-                      {{ props.row.name }}
-                    </router-link>
-                  </q-td>
-                </q-tr>
-              </template>
-
-              <template v-slot:item="props">
-                <div
-                  class="q-pa-sm col-xs-12 col-sm-6 col-md-4 col-lg-3 grid-style-transition"
-                >
-                  <q-card class="q-py-sm">
-                    <q-list dense>
-                      <q-item>
-                        <q-item-section>
-                          <q-item-label>{{
-                            $t('adminTools.billingGroupMemberName')
-                          }}</q-item-label>
-                        </q-item-section>
-                        <q-item-section side>
-                          <q-item-label caption>
-                            <router-link
-                              :to="{
-                                name: 'manageMember',
-                                params: { memberId: props.row.id },
-                              }"
-                            >
-                              {{ props.row.name }}
-                            </router-link>
-                          </q-item-label>
-                        </q-item-section>
-                      </q-item>
-                    </q-list>
-                  </q-card>
-                </div>
-              </template>
-            </q-table>
-          </div>
-        </q-tab-panel>
-
         <q-tab-panel name="access">
           <div class="column q-gutter-y-sm full-width">
             <h6 class="q-mt-md q-mb-sm">
@@ -522,6 +420,43 @@
               :member-id="selectedMemberFiltered.id"
               :inactive-warning="selectedMemberFiltered.state === 'inactive'"
             />
+          </div>
+        </q-tab-panel>
+
+        <q-tab-panel name="billingGroup">
+          <div class="column q-gutter-y-sm full-width">
+            <!-- No billing group state -->
+            <div
+              v-if="!selectedMember.billingGroup"
+              class="text-center q-pa-lg"
+            >
+              <div class="text-h6 q-mb-md">
+                {{ $t('adminTools.noBillingGroup') }}
+              </div>
+              <div class="text-body2 text-grey-6 q-mb-lg">
+                {{ $t('adminTools.noBillingGroupDescription') }}
+              </div>
+              <q-btn
+                :label="$t('adminTools.createBillingGroup')"
+                color="primary"
+                @click="showCreateBillingGroupDialog = true"
+              />
+            </div>
+
+            <!-- Member is in a billing group -->
+            <div v-else>
+              <!-- Admin view - always show full admin interface -->
+              <div class="text-h6 q-mb-md flex items-center">
+                {{ $t('adminTools.billingGroupAdminView') }}
+              </div>
+
+              <admin-billing-group-manager
+                v-if="billingGroupId"
+                :billing-group-id="billingGroupId"
+                @billing-group-updated="onBillingGroupUpdated"
+                @billing-group-deleted="onBillingGroupDeleted"
+              />
+            </div>
           </div>
         </q-tab-panel>
 
@@ -1486,10 +1421,16 @@ import { QForm } from 'quasar';
 import { MemberBillingInfo, MemberProfile, MemberState } from 'types/member';
 import { defineComponent } from 'vue';
 import CreateBillingGroupDialog from '@components/AdminTools/CreateBillingGroupDialog.vue';
+import AdminBillingGroupManager from '@components/AdminTools/AdminBillingGroupManager.vue';
 
 export default defineComponent({
   name: 'ManageMember',
-  components: { AccessList, SavedNotification, CreateBillingGroupDialog },
+  components: {
+    AccessList,
+    SavedNotification,
+    CreateBillingGroupDialog,
+    AdminBillingGroupManager,
+  },
   mixins: [formMixin, formatMixin],
   props: {
     member: {
@@ -1554,12 +1495,14 @@ export default defineComponent({
       smsBody: '',
       showCreateBillingGroupDialog: false,
       showEditBillingGroupDialog: false,
+      billingGroupIdFromApi: null as number | null,
     };
   },
   beforeMount() {
     this.loadInitialForm();
     this.getMemberBilling();
     this.getMemberLogs();
+    this.loadBillingGroupId();
   },
   methods: {
     loadInitialForm() {
@@ -1740,6 +1683,36 @@ export default defineComponent({
       // Refresh the member data to show the new billing group
       this.$emit('memberUpdated');
     },
+    onBillingGroupUpdated() {
+      // Refresh the member data to show updated billing group
+      this.$emit('memberUpdated');
+    },
+    onBillingGroupDeleted() {
+      // Refresh the member data after billing group deletion
+      this.$emit('memberUpdated');
+    },
+    getPrimaryMemberId() {
+      // For now, we'll implement this by searching through all members
+      // In a real implementation, we'd want the API to provide the ID
+      return null; // Simplified for now
+    },
+    async loadBillingGroupId() {
+      if (!this.selectedMember.billingGroup?.name) return;
+
+      try {
+        // Fetch all billing groups to find the ID by name
+        const response = await this.$axios.get('/api/admin/billing-groups/');
+        const billingGroup = response.data.find(
+          (bg: any) => bg.name === this.selectedMember.billingGroup?.name
+        );
+
+        if (billingGroup) {
+          this.billingGroupIdFromApi = billingGroup.id;
+        }
+      } catch (error) {
+        console.error('Failed to load billing group ID:', error);
+      }
+    },
     submitSmsModal() {
       this.smsSendLoading = true;
       this.$axios
@@ -1793,6 +1766,19 @@ export default defineComponent({
       const smsContainsUnicode = /[^\u0000-\u00ff]/.test(this.smsBody);
       const charsPerSms = smsContainsUnicode ? 70 : 160;
       return Math.ceil(this.smsBody.length / charsPerSms);
+    },
+    billingGroupId() {
+      // We'll need to fetch this from a separate API call or store it differently
+      // For now, we'll use a workaround to get the billing group ID
+      return this.billingGroupIdFromApi || null;
+    },
+  },
+  watch: {
+    selectedMember: {
+      handler() {
+        this.loadBillingGroupId();
+      },
+      deep: true,
     },
   },
 });

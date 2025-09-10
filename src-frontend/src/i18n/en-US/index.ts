@@ -498,6 +498,27 @@ export default {
     noMembers: 'No members were found that match your filter or search query.',
     billingGroupName: 'Name of Billing Group',
     billingGroupHead: 'Head of Billing Group',
+    billingGroupAdminView: 'Billing Group Admin View',
+    adminBillingGroupControl:
+      'As an admin, you have full control over this billing group and can manage all members.',
+    primaryMemberAdminInfo:
+      'As the primary member of this billing group, you can manage all members directly through this admin interface.',
+    secondaryMemberAdminInfo:
+      "This member is part of a billing group managed by {primaryMemberName}. You can view the primary member's profile to manage the billing group.",
+    viewPrimaryMember: 'View Primary Member',
+    billingGroupAdminActions: 'Billing Group Admin Actions',
+    searchMembers: 'Search members...',
+    filterMembers: 'Filter members',
+    allMembers: 'All Members',
+    activeMembers: 'Active Members',
+    joinDate: 'Join Date',
+    membershipStatus: 'Membership Status',
+    removeMember: 'Remove Member',
+    confirmRemoveMember:
+      'Are you sure you want to remove {memberName} from this billing group?',
+    memberRemovedSuccess: 'Member successfully removed from billing group',
+    noMembersInGroup: 'No members found in this billing group',
+    navigatingToPrimaryMember: 'Navigating to primary member profile...',
     billingGroupMembers: 'Current Billing Group Members',
     billingGroup: 'Billing Group',
     billingGroupMemberName: 'Member Name',

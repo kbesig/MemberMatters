@@ -18,6 +18,7 @@
       >
         <q-tab name="profile" :label="$t('menuLink.profile')" />
         <q-tab name="access" :label="$t('adminTools.access')" />
+        <q-tab name="billingGroup" :label="$t('adminTools.billingGroup')" />
         <q-tab name="billing" :label="$t('adminTools.billing')" />
         <q-tab name="log" :label="$t('adminTools.log')" />
       </q-tabs>
@@ -422,6 +423,43 @@
           </div>
         </q-tab-panel>
 
+        <q-tab-panel name="billingGroup">
+          <div class="column q-gutter-y-sm full-width">
+            <!-- No billing group state -->
+            <div
+              v-if="!selectedMember.billingGroup"
+              class="text-center q-pa-lg"
+            >
+              <div class="text-h6 q-mb-md">
+                {{ $t('adminTools.noBillingGroup') }}
+              </div>
+              <div class="text-body2 text-grey-6 q-mb-lg">
+                {{ $t('adminTools.noBillingGroupDescription') }}
+              </div>
+              <q-btn
+                :label="$t('adminTools.createBillingGroup')"
+                color="primary"
+                @click="showCreateBillingGroupDialog = true"
+              />
+            </div>
+
+            <!-- Member is in a billing group -->
+            <div v-else>
+              <!-- Admin view - always show full admin interface -->
+              <div class="text-h6 q-mb-md flex items-center">
+                {{ $t('adminTools.billingGroupAdminView') }}
+              </div>
+
+              <admin-billing-group-manager
+                v-if="billingGroupId"
+                :billing-group-id="billingGroupId"
+                @billing-group-updated="onBillingGroupUpdated"
+                @billing-group-deleted="onBillingGroupDeleted"
+              />
+            </div>
+          </div>
+        </q-tab-panel>
+
         <q-tab-panel name="billing">
           <div class="column flex content-start items-start q-gutter-y-lg">
             <div class="column q-gutter-y-sm full-width">
@@ -530,9 +568,13 @@
                       lines="1"
                       :class="{
                         inactive: billing.subscription.status === 'inactive',
-                        active: billing.subscription.status === 'active',
+                        active: ['active', 'group_active'].includes(
+                          billing.subscription.status
+                        ),
                         cancelling:
                           billing.subscription.status === 'cancelling',
+                        'group-inactive':
+                          billing.subscription.status === 'group_inactive',
                       }"
                     >
                       {{
@@ -1359,6 +1401,12 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <create-billing-group-dialog
+      v-model="showCreateBillingGroupDialog"
+      :members="members"
+      @billing-group-created="onBillingGroupCreated"
+    />
   </div>
 </template>
 
@@ -1372,10 +1420,17 @@ import { mapGetters } from 'vuex';
 import { QForm } from 'quasar';
 import { MemberBillingInfo, MemberProfile, MemberState } from 'types/member';
 import { defineComponent } from 'vue';
+import CreateBillingGroupDialog from '@components/AdminTools/CreateBillingGroupDialog.vue';
+import AdminBillingGroupManager from '@components/AdminTools/AdminBillingGroupManager.vue';
 
 export default defineComponent({
   name: 'ManageMember',
-  components: { AccessList, SavedNotification },
+  components: {
+    AccessList,
+    SavedNotification,
+    CreateBillingGroupDialog,
+    AdminBillingGroupManager,
+  },
   mixins: [formMixin, formatMixin],
   props: {
     member: {
@@ -1438,12 +1493,16 @@ export default defineComponent({
       smsSendLoading: false,
       smsModalIsOpen: false,
       smsBody: '',
+      showCreateBillingGroupDialog: false,
+      showEditBillingGroupDialog: false,
+      billingGroupIdFromApi: null as number | null,
     };
   },
   beforeMount() {
     this.loadInitialForm();
     this.getMemberBilling();
     this.getMemberLogs();
+    this.loadBillingGroupId();
   },
   methods: {
     loadInitialForm() {
@@ -1620,6 +1679,40 @@ export default defineComponent({
       this.smsBody = '';
       this.smsSendLoading = false;
     },
+    onBillingGroupCreated(billingGroupId: number) {
+      // Refresh the member data to show the new billing group
+      this.$emit('memberUpdated');
+    },
+    onBillingGroupUpdated() {
+      // Refresh the member data to show updated billing group
+      this.$emit('memberUpdated');
+    },
+    onBillingGroupDeleted() {
+      // Refresh the member data after billing group deletion
+      this.$emit('memberUpdated');
+    },
+    getPrimaryMemberId() {
+      // For now, we'll implement this by searching through all members
+      // In a real implementation, we'd want the API to provide the ID
+      return null; // Simplified for now
+    },
+    async loadBillingGroupId() {
+      if (!this.selectedMember.billingGroup?.name) return;
+
+      try {
+        // Fetch all billing groups to find the ID by name
+        const response = await this.$axios.get('/api/admin/billing-groups/');
+        const billingGroup = response.data.find(
+          (bg: any) => bg.name === this.selectedMember.billingGroup?.name
+        );
+
+        if (billingGroup) {
+          this.billingGroupIdFromApi = billingGroup.id;
+        }
+      } catch (error) {
+        console.error('Failed to load billing group ID:', error);
+      }
+    },
     submitSmsModal() {
       this.smsSendLoading = true;
       this.$axios
@@ -1674,6 +1767,19 @@ export default defineComponent({
       const charsPerSms = smsContainsUnicode ? 70 : 160;
       return Math.ceil(this.smsBody.length / charsPerSms);
     },
+    billingGroupId() {
+      // We'll need to fetch this from a separate API call or store it differently
+      // For now, we'll use a workaround to get the billing group ID
+      return this.billingGroupIdFromApi || null;
+    },
+  },
+  watch: {
+    selectedMember: {
+      handler() {
+        this.loadBillingGroupId();
+      },
+      deep: true,
+    },
   },
 });
 </script>
@@ -1701,6 +1807,10 @@ export default defineComponent({
 
 .cancelling {
   color: orange;
+}
+
+.group-inactive {
+  color: #ff6b35; /* Orange-red for group members with inactive primary subscription */
 }
 
 .q-field__after,

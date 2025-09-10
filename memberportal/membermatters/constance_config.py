@@ -391,6 +391,10 @@ CONSTANCE_CONFIG = {
         365,
         "The maximum number of days to show on the stats page.",
     ),
+    "CURRENT_ADDITIONAL_MEMBER_ADDON": (
+        "",
+        "The ID of the current additional member addon that should be used for billing group pricing locks. Leave empty if none is configured.",
+    ),
 }
 
 CONSTANCE_CONFIG_FIELDSETS = OrderedDict(
@@ -425,6 +429,7 @@ CONSTANCE_CONFIG_FIELDSETS = OrderedDict(
             ),
         ),
         ("Stats Settings", ("ENABLE_STATS_PAGE", "STATS_MAX_DAYS")),
+        ("Billing Groups", ("CURRENT_ADDITIONAL_MEMBER_ADDON",)),
         (
             "Sentry Error Reporting",
             (

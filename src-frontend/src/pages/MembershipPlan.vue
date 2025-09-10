@@ -4,8 +4,18 @@
       <q-spinner size="4em" />
     </template>
 
-    <template v-else-if="!currentPlan">
+    <template v-else-if="!currentPlan && !isInBillingGroup">
       <select-tier />
+    </template>
+
+    <template v-else-if="!currentPlan && isInBillingGroup">
+      <!-- Show billing group info for users in billing groups without individual plans -->
+      <div class="q-mb-md full-width">
+        <div class="text-h6 q-py-md">
+          {{ $t('billing.youAreInBillingGroup') }}
+        </div>
+        <billing-group-manager />
+      </div>
     </template>
 
     <template v-else>
@@ -38,31 +48,147 @@
           </q-banner>
         </div>
 
+        <!-- Group member inactive warning -->
+        <div v-if="subscriptionStatus === 'group_inactive'" class="row q-mb-md">
+          <q-banner class="bg-warning text-white">
+            <div class="text-h5">Group Subscription Issue</div>
+            <p>
+              The primary member's subscription for your billing group has been
+              cancelled or failed. Please contact your group administrator or us
+              for assistance.
+            </p>
+          </q-banner>
+        </div>
+
+        <!-- Subscription Info and Cost Summary side by side -->
         <div
           v-if="
             this.subscriptionInfo?.currentPeriodEnd &&
             subscriptionStatus !== 'cancelling'
           "
-          class="q-mb-md"
+          class="row q-col-gutter-md q-mb-md full-width"
         >
+          <!-- Subscription Info Table (Left Side) -->
+          <div class="col-12 col-md-6">
+            <div class="text-h6 q-py-md">
+              {{ $t('paymentPlans.subscriptionInfo') }}
+            </div>
+            <q-card>
+              <q-list bordered separator>
+                <q-item>
+                  <q-item-section>
+                    <q-item-label>{{ currentPeriodEnd }}</q-item-label>
+                    <q-item-label caption>{{
+                      $tc('paymentPlans.renewalDate')
+                    }}</q-item-label>
+                  </q-item-section>
+                </q-item>
+                <q-item>
+                  <q-item-section>
+                    <q-item-label>{{ signupDate }}</q-item-label>
+                    <q-item-label caption>{{
+                      $tc('paymentPlans.signupDate')
+                    }}</q-item-label>
+                  </q-item-section>
+                </q-item>
+              </q-list>
+            </q-card>
+          </div>
+
+          <!-- Cost Summary Table (Right Side) -->
+          <div v-if="costSummary" class="col-12 col-md-6">
+            <div class="text-h6 q-py-md">
+              {{ costSummary.label }}
+            </div>
+            <q-card>
+              <q-list bordered separator>
+                <q-item
+                  v-for="item in costSummary.line_items"
+                  :key="item.description"
+                >
+                  <q-item-section>
+                    <q-item-label>
+                      {{ item.description }}
+                      <span v-if="item.proration" class="text-orange">
+                        (Prorated)</span
+                      >
+                    </q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <q-item-label>{{ item.cost_display }}</q-item-label>
+                  </q-item-section>
+                </q-item>
+                <q-separator />
+                <q-item>
+                  <q-item-section>
+                    <q-item-label class="text-weight-bold">Total</q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <q-item-label class="text-weight-bold">{{
+                      costSummary.total_display
+                    }}</q-item-label>
+                  </q-item-section>
+                </q-item>
+                <q-item v-if="costSummary.amount_due !== costSummary.total">
+                  <q-item-section>
+                    <q-item-label class="text-weight-bold text-orange"
+                      >Amount Due Now</q-item-label
+                    >
+                  </q-item-section>
+                  <q-item-section side>
+                    <q-item-label class="text-orange text-weight-bold">{{
+                      costSummary.amount_due_display
+                    }}</q-item-label>
+                  </q-item-section>
+                </q-item>
+              </q-list>
+            </q-card>
+          </div>
+        </div>
+
+        <!-- Fallback: Show cost summary separately if no subscription info -->
+        <div v-else-if="costSummary" class="q-mb-md full-width">
           <div class="text-h6 q-py-md">
-            {{ $t('paymentPlans.subscriptionInfo') }}
+            {{ costSummary.label }}
           </div>
           <q-card>
             <q-list bordered separator>
+              <q-item
+                v-for="item in costSummary.line_items"
+                :key="item.description"
+              >
+                <q-item-section>
+                  <q-item-label>
+                    {{ item.description }}
+                    <span v-if="item.proration" class="text-orange">
+                      (Prorated)</span
+                    >
+                  </q-item-label>
+                </q-item-section>
+                <q-item-section side>
+                  <q-item-label>{{ item.cost_display }}</q-item-label>
+                </q-item-section>
+              </q-item>
+              <q-separator />
               <q-item>
                 <q-item-section>
-                  <q-item-label>{{ currentPeriodEnd }}</q-item-label>
-                  <q-item-label caption>{{
-                    $tc('paymentPlans.renewalDate')
+                  <q-item-label class="text-weight-bold">Total</q-item-label>
+                </q-item-section>
+                <q-item-section side>
+                  <q-item-label class="text-weight-bold">{{
+                    costSummary.total_display
                   }}</q-item-label>
                 </q-item-section>
               </q-item>
-              <q-item>
+              <q-item v-if="costSummary.amount_due !== costSummary.total">
                 <q-item-section>
-                  <q-item-label>{{ signupDate }}</q-item-label>
-                  <q-item-label caption>{{
-                    $tc('paymentPlans.signupDate')
+                  <q-item-label class="text-weight-bold text-orange"
+                    >Amount Due Now</q-item-label
+                  >
+                </q-item-section>
+                <q-item-section side>
+                  <q-item-label class="text-orange text-weight-bold">{{
+                    costSummary.amount_due_display
                   }}</q-item-label>
                 </q-item-section>
               </q-item>
@@ -70,8 +196,16 @@
           </q-card>
         </div>
 
+        <!-- Billing Group Manager -->
+        <div class="q-mb-md full-width">
+          <div class="text-h6 q-py-md">
+            {{ $t('billing.billingGroup') }}
+          </div>
+          <billing-group-manager />
+        </div>
+
         <q-btn
-          v-if="subscriptionStatus === 'active'"
+          v-if="['active', 'group_active'].includes(subscriptionStatus)"
           :disable="disableButton"
           :loading="loadingButton"
           @click="cancelPlan"
@@ -99,6 +233,7 @@ import SelectTier from '@components/Billing/SelectTier.vue';
 import SelectedTier from '@components/Billing/SelectedTier.vue';
 import SignupRequiredSteps from '@components/Billing/SignupRequiredSteps.vue';
 import MemberBucksManageBilling from 'components/MemberBucksManageBilling.vue';
+import BillingGroupManager from '@components/Billing/BillingGroupManager.vue';
 
 export default defineComponent({
   name: 'MembershipTierPage',
@@ -107,6 +242,7 @@ export default defineComponent({
     SelectTier,
     SelectedTier,
     SignupRequiredSteps,
+    BillingGroupManager,
   },
   data() {
     return {
@@ -114,6 +250,7 @@ export default defineComponent({
       disableButton: false,
       loadingButton: false,
       cancelSuccess: false,
+      costSummary: null,
       subscriptionInfo: {
         billingCycleAnchor: null,
         currentPeriodEnd: null,
@@ -131,6 +268,10 @@ export default defineComponent({
       } else {
         return false;
       }
+    },
+    isInBillingGroup() {
+      // Check if user is in a billing group - the backend returns null when not in a group
+      return !!this.profile?.billingGroup;
     },
     cardExists() {
       return this?.profile?.financial?.memberBucks?.savedCard?.last4;
@@ -159,6 +300,19 @@ export default defineComponent({
   },
   methods: {
     ...mapActions('profile', ['getProfile']),
+    getCostSummary() {
+      this.$axios
+        .get('/api/billing/membership-plan-cost-summary/')
+        .then((result) => {
+          if (result.data.success) {
+            this.costSummary = result.data.upcoming_invoice;
+          }
+        })
+        .catch(() => {
+          // Silently fail if cost summary is not available
+          this.costSummary = null;
+        });
+    },
     getSubscriptionInfo() {
       this.$axios.get('/api/billing/myplan/').then((result) => {
         if (result.data.success) {
@@ -254,6 +408,7 @@ export default defineComponent({
   },
   mounted() {
     this.getProfile();
+    this.getCostSummary();
     this.getSubscriptionInfo();
     this.getCanSignup();
   },

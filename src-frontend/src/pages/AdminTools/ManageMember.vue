@@ -53,6 +53,17 @@ export default defineComponent({
   created() {
     this.getMembers();
   },
+  watch: {
+    memberId: {
+      immediate: true,
+      handler(newId) {
+        if (newId) {
+          this.members = [];
+          this.getMembers();
+        }
+      },
+    },
+  },
   methods: {
     getMembers() {
       this.$axios

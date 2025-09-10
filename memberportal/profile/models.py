@@ -169,7 +169,8 @@ class User(ExportModelOperationsMixin("user"), AbstractBaseUser, PermissionsMixi
     password_reset_expire = models.DateTimeField(default=None, blank=True, null=True)
     staff = models.BooleanField(default=False)  # an admin user for the portal
     admin = models.BooleanField(default=False)  # a portal superuser
-
+    billing_group_invite = models.IntegerField(default=0)
+    billing_group_member = models.IntegerField(default=0)
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []  # Email & Password are required by default.
 
@@ -299,6 +300,108 @@ class User(ExportModelOperationsMixin("user"), AbstractBaseUser, PermissionsMixi
         return True
 
 
+class BillingGroup(ExportModelOperationsMixin("billing_group"), models.Model):
+    id = models.AutoField(primary_key=True)
+    name = models.CharField(max_length=255)
+    primary_member = models.OneToOneField(
+        "Profile",
+        on_delete=models.SET_NULL,
+        related_name="billing_group_primary_member",
+        null=True,
+        blank=True,
+    )
+
+    def __str__(self):
+        return self.name
+
+    def get_members(self):
+        return self.members.all()
+
+    def get_member(self, id):
+        return self.members.get(id=id)
+
+    def get_invites(self):
+        return self.members_invites.all()
+
+    def get_invite(self, id):
+        return self.members_invites.get(id=id)
+
+    def get_primary_member(self):
+        return self.primary_member
+
+    def get_head(self):
+        return self.get_primary_member()
+
+
+class BillingGroupMemberAddon(
+    ExportModelOperationsMixin("billing_group_member_addon"), models.Model
+):
+    """
+    Tracks the locked-in addon pricing for billing group members.
+    When a member is added to a billing group, their addon pricing is locked
+    to the current addon cost at that time.
+    """
+
+    id = models.AutoField(primary_key=True)
+    billing_group = models.ForeignKey(
+        BillingGroup,
+        on_delete=models.CASCADE,
+        related_name="member_addons",
+    )
+    member = models.ForeignKey(
+        "Profile",
+        on_delete=models.CASCADE,
+        related_name="billing_group_addons",
+    )
+    addon = models.ForeignKey(
+        "api_admin_tools.SubscriptionAddon",
+        on_delete=models.CASCADE,
+        related_name="billing_group_members",
+    )
+    locked_cost = models.IntegerField(
+        help_text="Cost in cents when this member was added to the billing group"
+    )
+    locked_currency = models.CharField(max_length=3, default="aud")
+    locked_interval = models.CharField(max_length=10)
+    locked_interval_count = models.IntegerField(default=1)
+    date_locked = models.DateTimeField(auto_now_add=True)
+
+    # Stripe integration fields
+    stripe_subscription_item_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Stripe subscription item ID for this member's addon",
+    )
+    stripe_price_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Stripe price ID created for this member's locked pricing",
+    )
+
+    class Meta:
+        verbose_name = "Billing Group Member Add-on"
+        verbose_name_plural = "Billing Group Member Add-ons"
+        unique_together = [["billing_group", "member", "addon"]]
+
+    def __str__(self):
+        return f"{self.member.get_full_name()} - {self.addon.name} in {self.billing_group.name}"
+
+    def get_cost_display(self):
+        return f"${self.locked_cost/100:.2f}"
+
+    def get_locked_pricing_object(self):
+        return {
+            "cost": self.locked_cost,
+            "cost_display": self.get_cost_display(),
+            "currency": self.locked_currency,
+            "interval": self.locked_interval,
+            "interval_count": self.locked_interval_count,
+            "date_locked": self.date_locked.isoformat(),
+        }
+
+
 class Profile(ExportModelOperationsMixin("profile"), models.Model):
     STATES = (
         ("noob", "Needs Induction"),
@@ -311,6 +414,8 @@ class Profile(ExportModelOperationsMixin("profile"), models.Model):
         ("inactive", "Inactive"),
         ("active", "Active"),
         ("cancelling", "Cancelling"),
+        ("group_active", "Group Member (Active)"),
+        ("group_inactive", "Group Member (Inactive)"),
     )
 
     class Meta:
@@ -346,6 +451,20 @@ class Profile(ExportModelOperationsMixin("profile"), models.Model):
     phone = models.CharField(validators=[phone_regex], max_length=12, blank=True)
     state = models.CharField(max_length=11, default="noob", choices=STATES)
     vehicle_registration_plate = models.CharField(max_length=30, blank=True, null=True)
+    billing_group = models.ForeignKey(
+        BillingGroup,
+        on_delete=models.SET_NULL,
+        related_name="members",
+        null=True,
+        blank=True,
+    )
+    billing_group_invite = models.ForeignKey(
+        BillingGroup,
+        on_delete=models.SET_NULL,
+        related_name="members_invites",
+        null=True,
+        blank=True,
+    )
 
     membership_plan = models.ForeignKey(
         PaymentPlan,
@@ -384,7 +503,7 @@ class Profile(ExportModelOperationsMixin("profile"), models.Model):
         max_length=100, blank=True, null=True, default=""
     )
     subscription_status = models.CharField(
-        max_length=10, default="inactive", choices=SUBSCRIPTION_STATES
+        max_length=20, default="inactive", choices=SUBSCRIPTION_STATES
     )
     subscription_first_created = models.DateTimeField(
         default=None, blank=True, null=True, editable=False
@@ -491,6 +610,35 @@ class Profile(ExportModelOperationsMixin("profile"), models.Model):
     def get_logs(self):
         return UserEventLog.objects.filter(user=self.user)
 
+    def has_active_subscription(self):
+        """
+        Returns True if the member has an active subscription, either individual or through a billing group.
+        """
+        return self.subscription_status in ["active", "group_active"]
+
+    def get_effective_subscription_status(self):
+        """
+        Returns the effective subscription status, considering billing group membership.
+        Primary members keep their own subscription status, secondary members get group status.
+        """
+        # If user is not in a billing group, return their own status
+        if not self.billing_group or not self.billing_group.primary_member:
+            return self.subscription_status
+
+        # If user is the primary member, return their own status
+        if self.billing_group.primary_member == self:
+            return self.subscription_status
+
+        # If user is a secondary member, return group status based on primary member's status
+        primary_member = self.billing_group.primary_member
+        if primary_member.subscription_status == "active":
+            return "group_active"
+        elif primary_member.subscription_status in ["inactive", "cancelling"]:
+            return "group_inactive"
+
+        # Fallback to their own status
+        return self.subscription_status
+
     def get_full_name(self):
         return self.first_name + " " + self.last_name
 
@@ -556,6 +704,26 @@ class Profile(ExportModelOperationsMixin("profile"), models.Model):
                 "last4": self.stripe_card_last_digits,
             },
             "subscriptionStatus": self.subscription_status,
+            "billingGroup": (
+                {
+                    "name": self.billing_group.name if self.billing_group else None,
+                    "head": (
+                        self.billing_group.get_head().get_full_name()
+                        if self.billing_group
+                        else None
+                    ),
+                    "members": (
+                        [
+                            {"name": member.get_full_name(), "id": member.user.id}
+                            for member in self.billing_group.get_members()
+                        ]
+                        if self.billing_group
+                        else []
+                    ),
+                }
+                if self.billing_group
+                else None
+            ),
         }
 
     def get_access_permissions(self, ignore_user_state=False):
@@ -662,3 +830,9 @@ class Profile(ExportModelOperationsMixin("profile"), models.Model):
             self.created = timezone.now()
         self.modified = timezone.now()
         return super(Profile, self).save(*args, **kwargs)
+
+    def has_billing_group_invite(self):
+        return self.billing_group_invite is not None
+
+    def has_billing_group(self):
+        return self.billing_group is not None

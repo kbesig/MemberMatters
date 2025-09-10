@@ -247,4 +247,12 @@ export default defineComponent({
 
   .fade-enter, .fade-leave-to /* .fade-leave-active below version 2.1.8 */
     opacity: 0
+
+// Fix for navigation list sometimes appearing blank
+.q-scrollarea .q-scrollarea__content
+  opacity: 1 !important
+
+.q-list
+  opacity: 1 !important
+  transform: translateZ(0) // Force hardware acceleration
 </style>

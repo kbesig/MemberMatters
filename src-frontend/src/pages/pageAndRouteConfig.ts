@@ -133,6 +133,14 @@ const PageAndRouteConfig: PageAndRouteConfigType[] = [
         component: () => import('pages/Kiosks.vue'),
       },
       {
+        icon: icons.addons,
+        to: '/manage/addons',
+        name: 'addons',
+        loggedIn: true,
+        admin: true,
+        component: () => import('pages/AdminTools/AddOns.vue'),
+      },
+      {
         icon: icons.stats,
         to: '/tools/stats/',
         name: 'stats',

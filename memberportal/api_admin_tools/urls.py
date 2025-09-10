@@ -98,4 +98,39 @@ urlpatterns = [
         views.ManageSettings.as_view(),
         name="ManageSettings",
     ),
+    path(
+        "api/admin/billing-groups/",
+        views.BillingGroupManagement.as_view(),
+        name="BillingGroupManagement",
+    ),
+    path(
+        "api/admin/billing-groups/<int:billing_group_id>/",
+        views.BillingGroupDetail.as_view(),
+        name="BillingGroupDetail",
+    ),
+    path(
+        "api/admin/billing-groups/<int:billing_group_id>/members/",
+        views.BillingGroupMemberManagement.as_view(),
+        name="BillingGroupMemberManagement",
+    ),
+    path(
+        "api/admin/billing-groups/<int:billing_group_id>/invites/",
+        views.BillingGroupInviteManagement.as_view(),
+        name="BillingGroupInviteManagement",
+    ),
+    path(
+        "api/admin/addons/",
+        views.ManageAddons.as_view(),
+        name="ManageAddons",
+    ),
+    path(
+        "api/admin/addons/<int:addon_id>/",
+        views.ManageAddons.as_view(),
+        name="ManageAddons",
+    ),
+    path(
+        "api/admin/addons/current-additional-member/",
+        views.ManageCurrentAdditionalMemberAddon.as_view(),
+        name="ManageCurrentAdditionalMemberAddon",
+    ),
 ]

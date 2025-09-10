@@ -13,6 +13,16 @@ urlpatterns = [
         name="MemberTiers",
     ),
     path(
+        "api/billing/addons/",
+        views.SubscriptionAddons.as_view(),
+        name="SubscriptionAddons",
+    ),
+    path(
+        "api/billing/addons/manage/",
+        views.SubscriptionAddonManagement.as_view(),
+        name="SubscriptionAddonManagement",
+    ),
+    path(
         "api/billing/plans/<int:plan_id>/signup/",
         views.PaymentPlanSignup.as_view(),
         name="PaymentPlanSignup",
@@ -26,6 +36,11 @@ urlpatterns = [
         "api/billing/myplan/",
         views.SubscriptionInfo.as_view(),
         name="SubscriptionInfo",
+    ),
+    path(
+        "api/billing/membership-plan-cost-summary/",
+        views.MembershipPlanCostSummary.as_view(),
+        name="MembershipPlanCostSummary",
     ),
     path(
         "api/billing/can-signup/",
@@ -56,5 +71,25 @@ urlpatterns = [
         "api/billing/stripe-webhook/",
         views.StripeWebhook.as_view(),
         name="StripeWebhook",
+    ),
+    path(
+        "api/billing/billing-group/",
+        views.MemberBillingGroupManagement.as_view(),
+        name="MemberBillingGroupManagement",
+    ),
+    path(
+        "api/billing/billing-group/members/",
+        views.MemberBillingGroupMemberManagement.as_view(),
+        name="MemberBillingGroupMemberManagement",
+    ),
+    path(
+        "api/billing/billing-group/invite/",
+        views.MemberBillingGroupInviteResponse.as_view(),
+        name="MemberBillingGroupInviteResponse",
+    ),
+    path(
+        "api/billing/billing-group/leave/",
+        views.MemberBillingGroupLeave.as_view(),
+        name="MemberBillingGroupLeave",
     ),
 ]

@@ -18,6 +18,7 @@ export default {
   doors: 'mdi-door-closed-lock',
   interlocks: 'mdi-power-plug',
   kiosks: 'mdi-desktop-mac',
+  addons: 'mdi-puzzle',
 
   tools: 'mdi-tools',
   admintools: 'mdi-toolbox',

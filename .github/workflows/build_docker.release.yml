@@ -26,4 +26,4 @@ jobs:
           file: docker/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: membermatters/membermatters:latest,membermatters/membermatters:${{github.ref_name}}
+          tags: kbesig/membermatters:latest,kbesig/membermatters:${{github.ref_name}}

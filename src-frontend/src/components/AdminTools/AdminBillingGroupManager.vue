@@ -113,6 +113,8 @@
               v-model="addMemberForm.member_id"
               :options="availableMembers"
               :label="$t('adminTools.selectMember')"
+              :error="!!addMemberError"
+              :error-message="addMemberError"
               outlined
               dense
               clearable
@@ -123,6 +125,7 @@
               use-input
               input-debounce="300"
               @filter="filterMembers"
+              @update:model-value="addMemberError = ''"
               :rules="[(val) => !!val || $t('adminTools.memberRequired')]"
             />
 
@@ -130,7 +133,7 @@
               <q-btn
                 :label="$t('button.cancel')"
                 color="grey"
-                @click="showAddMemberDialog = false"
+                @click="closeAddMemberDialog"
                 flat
               />
               <q-btn
@@ -250,6 +253,7 @@ export default defineComponent({
       showAddMemberDialog: false,
       showEditDialog: false,
       showDeleteDialog: false,
+      addMemberError: '',
       addMemberForm: {
         member_id: null,
       },
@@ -338,6 +342,8 @@ export default defineComponent({
     async loadAvailableMembers() {
       try {
         const response = await this.$axios.get('/api/admin/members/');
+        console.log('All members from API:', response.data.length);
+
         this.allMembersOptions = response.data
           .filter(
             (member) =>
@@ -350,6 +356,13 @@ export default defineComponent({
             name: member.name.full,
             email: member.email,
           }));
+
+        console.log(
+          'Available members after filtering:',
+          this.allMembersOptions.length
+        );
+        console.log('Sample available member:', this.allMembersOptions[0]);
+
         this.availableMembers = [...this.allMembersOptions];
       } catch (error) {
         console.error('Failed to load available members:', error);
@@ -371,7 +384,22 @@ export default defineComponent({
       });
     },
 
+    closeAddMemberDialog() {
+      this.showAddMemberDialog = false;
+      this.addMemberForm.member_id = null;
+      this.addMemberError = '';
+    },
+
     async addMember() {
+      // Clear any previous error
+      this.addMemberError = '';
+
+      // Validate that member_id is set
+      if (!this.addMemberForm.member_id) {
+        this.addMemberError = this.$t('adminTools.memberRequired');
+        return;
+      }
+
       this.loading = true;
       try {
         const response = await this.$axios.post(
@@ -387,22 +415,18 @@ export default defineComponent({
             type: 'positive',
             message: this.$t('adminTools.memberAddedToBillingGroup'),
           });
-          this.showAddMemberDialog = false;
-          this.addMemberForm.member_id = null;
+          this.closeAddMemberDialog();
           await this.loadBillingGroupData();
           await this.loadAvailableMembers();
           this.$emit('billing-group-updated');
         } else {
-          this.$q.notify({
-            type: 'negative',
-            message: response.data.message || this.$t('error.requestFailed'),
-          });
+          this.addMemberError =
+            response.data.message || this.$t('error.requestFailed');
         }
       } catch (error) {
-        this.$q.notify({
-          type: 'negative',
-          message: this.$t('error.requestFailed'),
-        });
+        console.error('Error adding member to billing group:', error);
+        this.addMemberError =
+          error.response?.data?.message || this.$t('error.requestFailed');
       } finally {
         this.loading = false;
       }

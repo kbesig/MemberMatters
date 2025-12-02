@@ -212,16 +212,19 @@
               v-model="addMemberForm.email"
               :label="$t('billing.memberEmail')"
               :rules="[(val) => !!val || $t('billing.emailRequired')]"
+              :error="!!addMemberError"
+              :error-message="addMemberError"
               outlined
               dense
               type="email"
+              @update:model-value="addMemberError = ''"
             />
 
             <div class="row justify-end q-gutter-sm">
               <q-btn
                 :label="$t('billing.button.cancel')"
                 color="grey"
-                @click="showAddMemberDialog = false"
+                @click="closeAddMemberDialog"
                 flat
               />
               <q-btn
@@ -330,6 +333,7 @@ export default defineComponent({
       showLeaveBillingGroupDialog: false,
       billingGroup: null,
       pendingInvite: null,
+      addMemberError: '',
       createForm: {
         name: '',
       },
@@ -432,7 +436,22 @@ export default defineComponent({
       }
     },
 
+    closeAddMemberDialog() {
+      this.showAddMemberDialog = false;
+      this.addMemberForm.email = '';
+      this.addMemberError = '';
+    },
+
     async addMember() {
+      // Clear any previous error
+      this.addMemberError = '';
+
+      // Validate that email is set
+      if (!this.addMemberForm.email || !this.addMemberForm.email.trim()) {
+        this.addMemberError = this.$t('billing.emailRequired');
+        return;
+      }
+
       this.loading = true;
       try {
         const response = await this.$axios.post(
@@ -444,20 +463,20 @@ export default defineComponent({
             type: 'positive',
             message: this.$t('billing.memberAdded'),
           });
-          this.showAddMemberDialog = false;
-          this.addMemberForm.email = '';
+          this.closeAddMemberDialog();
           await this.loadBillingGroupInfo();
         } else {
-          this.$q.notify({
-            type: 'negative',
-            message: response.data.message || this.$t('error.requestFailed'),
-          });
+          this.addMemberError =
+            response.data.message || this.$t('error.requestFailed');
         }
       } catch (error) {
-        this.$q.notify({
-          type: 'negative',
-          message: this.$t('error.requestFailed'),
-        });
+        console.error('Error adding member to billing group:', error);
+        console.error('Error response:', error.response);
+        console.error('Error response data:', error.response?.data);
+        console.error('Form data sent:', this.addMemberForm);
+
+        this.addMemberError =
+          error.response?.data?.message || this.$t('error.requestFailed');
       } finally {
         this.loading = false;
       }

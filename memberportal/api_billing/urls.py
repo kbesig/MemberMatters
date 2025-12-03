@@ -97,4 +97,9 @@ urlpatterns = [
         views.InviteNonMemberToRegister.as_view(),
         name="InviteNonMemberToRegister",
     ),
+    path(
+        "api/billing/billing-group/invitation/<uuid:token>/",
+        views.GetBillingGroupInvitation.as_view(),
+        name="GetBillingGroupInvitation",
+    ),
 ]

@@ -125,3 +125,46 @@ class EventLogAdmin(admin.ModelAdmin):
 @admin.register(BillingGroup)
 class BillingGroupAdmin(admin.ModelAdmin):
     pass
+
+
+@admin.register(BillingGroupInvite)
+class BillingGroupInviteAdmin(admin.ModelAdmin):
+    list_display = [
+        "email",
+        "billing_group",
+        "invited_by",
+        "created_date",
+        "expires_date",
+        "accepted",
+        "is_expired_status",
+        "invalidated",
+    ]
+    list_filter = [
+        "accepted",
+        "invalidated",
+        "billing_group",
+        "created_date",
+    ]
+    search_fields = [
+        "email",
+        "invitation_token",
+        "billing_group__name",
+    ]
+    readonly_fields = [
+        "invitation_token",
+        "created_date",
+        "accepted_date",
+        "invalidated_date",
+    ]
+    ordering = ["-created_date"]
+
+    def is_expired_status(self, obj):
+        """Display whether the invitation is expired"""
+        return obj.is_expired()
+
+    is_expired_status.short_description = "Expired"
+    is_expired_status.boolean = True
+
+    def has_delete_permission(self, request, obj=None):
+        """Only superusers can delete invitations"""
+        return request.user.is_superuser

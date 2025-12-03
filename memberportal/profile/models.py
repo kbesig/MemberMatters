@@ -402,6 +402,108 @@ class BillingGroupMemberAddon(
         }
 
 
+class BillingGroupInvite(
+    ExportModelOperationsMixin("billing_group_invite"), models.Model
+):
+    """
+    Tracks pending invitations to join a billing group.
+    When a primary member invites someone via email, we create an invitation
+    record with a unique token that's embedded in the registration URL.
+    """
+
+    id = models.AutoField(primary_key=True)
+    email = models.EmailField(
+        max_length=255,
+        db_index=True,
+        help_text="Email address of the invited person (stored in lowercase)",
+    )
+    billing_group = models.ForeignKey(
+        BillingGroup,
+        on_delete=models.CASCADE,
+        related_name="invitations",
+        help_text="The billing group they're being invited to join",
+    )
+    invited_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="sent_billing_group_invitations",
+        help_text="The user who sent this invitation",
+    )
+    invitation_token = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        db_index=True,
+        editable=False,
+        help_text="Unique token embedded in the registration URL",
+    )
+    created_date = models.DateTimeField(auto_now_add=True)
+    expires_date = models.DateTimeField(
+        help_text="When this invitation expires (default 7 days)"
+    )
+    accepted = models.BooleanField(
+        default=False, help_text="Whether the invitation was accepted"
+    )
+    accepted_date = models.DateTimeField(
+        null=True, blank=True, help_text="When the invitation was accepted"
+    )
+    invalidated = models.BooleanField(
+        default=False,
+        help_text="Whether this invitation was invalidated (e.g., by sending a new one)",
+    )
+    invalidated_date = models.DateTimeField(
+        null=True, blank=True, help_text="When the invitation was invalidated"
+    )
+
+    class Meta:
+        verbose_name = "Billing Group Invitation"
+        verbose_name_plural = "Billing Group Invitations"
+        indexes = [
+            models.Index(fields=["email", "billing_group"]),
+            models.Index(fields=["expires_date"]),
+        ]
+        ordering = ["-created_date"]
+
+    def __str__(self):
+        status = (
+            "Accepted"
+            if self.accepted
+            else ("Expired" if self.is_expired() else "Pending")
+        )
+        return f"{self.email} invited to {self.billing_group.name} - {status}"
+
+    def save(self, *args, **kwargs):
+        # Always store email in lowercase for consistent matching
+        if self.email:
+            self.email = self.email.lower()
+
+        # Set expiration date to 7 days from now if not set
+        if not self.expires_date:
+            self.expires_date = timezone.now() + timedelta(days=7)
+
+        super().save(*args, **kwargs)
+
+    def is_expired(self):
+        """Check if the invitation has expired"""
+        return timezone.now() > self.expires_date
+
+    def is_valid(self):
+        """Check if the invitation is valid (not expired, accepted, or invalidated)"""
+        return not self.accepted and not self.invalidated and not self.is_expired()
+
+    def accept(self):
+        """Mark the invitation as accepted"""
+        self.accepted = True
+        self.accepted_date = timezone.now()
+        self.save()
+
+    def invalidate(self):
+        """Mark the invitation as invalidated"""
+        self.invalidated = True
+        self.invalidated_date = timezone.now()
+        self.save()
+
+
 class Profile(ExportModelOperationsMixin("profile"), models.Model):
     STATES = (
         ("noob", "Needs Induction"),

@@ -2305,6 +2305,9 @@ class InviteNonMemberToRegister(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Normalize email to lowercase for consistent matching
+        email = email.lower()
+
         # Check if email already exists
         from profile.models import Profile
 
@@ -2317,6 +2320,67 @@ class InviteNonMemberToRegister(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Validate that primary member has an active payment method
+        if not user_profile.stripe_customer_id:
+            return Response(
+                {
+                    "success": False,
+                    "message": "You must add a payment method before inviting members to your billing group.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Check if primary member has a valid payment method in Stripe
+        try:
+            import stripe
+
+            stripe.api_key = config.STRIPE_SECRET_KEY
+
+            customer = stripe.Customer.retrieve(user_profile.stripe_customer_id)
+            payment_methods = stripe.PaymentMethod.list(
+                customer=user_profile.stripe_customer_id,
+                type="card",
+            )
+
+            if not payment_methods.data:
+                return Response(
+                    {
+                        "success": False,
+                        "message": "You must add a payment method before inviting members to your billing group.",
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        except Exception as e:
+            import sentry_sdk
+
+            sentry_sdk.capture_exception(e)
+            # Continue if we can't verify payment method - better to allow than block
+            pass
+
+        # Invalidate any existing pending invitations for this email to this billing group
+        from profile.models import BillingGroupInvite
+
+        existing_invites = BillingGroupInvite.objects.filter(
+            email=email,
+            billing_group=user_profile.billing_group,
+            accepted=False,
+            invalidated=False,
+        )
+
+        for invite in existing_invites:
+            invite.invalidate()
+            request.user.log_event(
+                f"Invalidated previous invitation for {email} to billing group '{user_profile.billing_group.name}'",
+                "billing_group",
+            )
+
+        # Create the invitation record
+        invitation = BillingGroupInvite.objects.create(
+            email=email,
+            billing_group=user_profile.billing_group,
+            invited_by=request.user,
+        )
+
         # Send invitation email
         from services.emails import send_single_email
 
@@ -2328,14 +2392,19 @@ class InviteNonMemberToRegister(APIView):
             f"Hi there!<br><br>"
             f"{inviter_name} has invited you to join {config.SITE_OWNER} "
             f"and be part of their billing group '{billing_group_name}'.<br><br>"
-            f"To accept this invitation, you'll need to:<br>"
-            f"1. Register for an account at {config.SITE_OWNER}<br>"
+            f"<strong>Great news:</strong> You won't need to provide payment information! "
+            f"Your membership will be covered by {inviter_name}'s billing group.<br><br>"
+            f"To accept this invitation:<br>"
+            f"1. Click the button below to register<br>"
             f"2. Complete the registration process<br>"
-            f"3. Contact {inviter_name} to be added to the billing group<br><br>"
-            f"Click the button below to get started!"
+            f"3. Verify your email address<br>"
+            f"4. You'll automatically be added to the billing group!<br><br>"
+            f"This invitation will expire in 7 days."
         )
 
-        registration_url = f"{config.SITE_URL}/register"
+        registration_url = (
+            f"{config.SITE_URL}/register?invite={invitation.invitation_token}"
+        )
 
         try:
             send_single_email(
@@ -2345,7 +2414,7 @@ class InviteNonMemberToRegister(APIView):
                     "title": subject,
                     "message": message,
                     "link": registration_url,
-                    "btn_text": "Register Now",
+                    "btn_text": "Accept Invitation",
                 },
                 template_name="email_with_button.html",
                 reply_to=request.user.email,
@@ -2353,7 +2422,7 @@ class InviteNonMemberToRegister(APIView):
             )
 
             request.user.log_event(
-                f"Sent registration invitation to {email} for billing group '{billing_group_name}'",
+                f"Sent billing group invitation to {email} for '{billing_group_name}' (token: {invitation.invitation_token})",
                 "billing_group",
             )
 
@@ -2368,10 +2437,78 @@ class InviteNonMemberToRegister(APIView):
             import sentry_sdk
 
             sentry_sdk.capture_exception(e)
+            # If email fails, delete the invitation record
+            invitation.delete()
             return Response(
                 {
                     "success": False,
                     "message": "Failed to send invitation email. Please try again.",
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class GetBillingGroupInvitation(APIView):
+    """
+    get: validates an invitation token and returns details about the invitation.
+    This is called by the registration page to display invitation info before registration.
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, token):
+        from profile.models import BillingGroupInvite
+
+        try:
+            invitation = BillingGroupInvite.objects.get(invitation_token=token)
+
+            # Check if invitation is valid
+            if invitation.invalidated:
+                return Response(
+                    {
+                        "success": False,
+                        "message": f"This invitation has been cancelled. Please contact {invitation.invited_by.get_full_name()} to request a new invitation.",
+                    },
+                    status=status.HTTP_410_GONE,
+                )
+
+            if invitation.accepted:
+                return Response(
+                    {
+                        "success": False,
+                        "message": "This invitation has already been accepted.",
+                    },
+                    status=status.HTTP_410_GONE,
+                )
+
+            if invitation.is_expired():
+                inviter = invitation.invited_by
+                return Response(
+                    {
+                        "success": False,
+                        "message": f"This invitation has expired. Please contact {inviter.get_full_name()} at {inviter.email} to request a new invitation.",
+                        "inviter_name": inviter.get_full_name(),
+                        "inviter_email": inviter.email,
+                    },
+                    status=status.HTTP_410_GONE,
+                )
+
+            # Return invitation details
+            return Response(
+                {
+                    "success": True,
+                    "billing_group_name": invitation.billing_group.name,
+                    "inviter_name": invitation.invited_by.get_full_name(),
+                    "invited_email": invitation.email,
+                    "expires_date": invitation.expires_date.isoformat(),
+                }
+            )
+
+        except BillingGroupInvite.DoesNotExist:
+            return Response(
+                {
+                    "success": False,
+                    "message": "This invitation link is invalid or has been removed.",
+                },
+                status=status.HTTP_404_NOT_FOUND,
             )

@@ -470,7 +470,8 @@ class CompleteSignup(StripeAPIView):
     def post(self, request):
         member_profile = request.user.profile
 
-        if member_profile.subscription_status != "active":
+        # Allow billing group members to complete signup even without individual subscription
+        if member_profile.subscription_status not in ["active", "group_active"]:
             return Response(
                 {
                     "success": False,
@@ -2509,6 +2510,259 @@ class GetBillingGroupInvitation(APIView):
                 {
                     "success": False,
                     "message": "This invitation link is invalid or has been removed.",
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+
+class ListBillingGroupInvitations(APIView):
+    """
+    get: lists all invitations for the user's billing group
+    """
+
+    def get(self, request):
+        user_profile = request.user.profile
+
+        # Check if user is primary member of a billing group
+        if (
+            not user_profile.billing_group
+            or user_profile.billing_group.primary_member != user_profile
+        ):
+            return Response(
+                {
+                    "success": False,
+                    "message": "You must be the primary member of a billing group to view invitations.",
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        from profile.models import BillingGroupInvite
+
+        # Get all invitations for this billing group
+        invitations = BillingGroupInvite.objects.filter(
+            billing_group=user_profile.billing_group
+        ).order_by("-created_date")
+
+        # Format the data
+        invitations_data = []
+        for invitation in invitations:
+            invitations_data.append(
+                {
+                    "id": invitation.id,
+                    "email": invitation.email,
+                    "created_date": invitation.created_date.isoformat(),
+                    "expires_date": invitation.expires_date.isoformat(),
+                    "accepted": invitation.accepted,
+                    "accepted_date": (
+                        invitation.accepted_date.isoformat()
+                        if invitation.accepted_date
+                        else None
+                    ),
+                    "invalidated": invitation.invalidated,
+                    "is_expired": invitation.is_expired(),
+                    "is_valid": invitation.is_valid(),
+                    "invited_by": (
+                        invitation.invited_by.get_full_name()
+                        if invitation.invited_by
+                        else "Unknown"
+                    ),
+                }
+            )
+
+        return Response({"success": True, "invitations": invitations_data})
+
+
+class ResendBillingGroupInvitation(APIView):
+    """
+    post: resends an invitation (invalidates old one and creates new one)
+    """
+
+    def post(self, request, invitation_id):
+        user_profile = request.user.profile
+
+        # Check if user is primary member of a billing group
+        if (
+            not user_profile.billing_group
+            or user_profile.billing_group.primary_member != user_profile
+        ):
+            return Response(
+                {
+                    "success": False,
+                    "message": "You must be the primary member of a billing group to resend invitations.",
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        from profile.models import BillingGroupInvite
+
+        try:
+            old_invitation = BillingGroupInvite.objects.get(
+                id=invitation_id, billing_group=user_profile.billing_group
+            )
+
+            # Check if invitation was already accepted
+            if old_invitation.accepted:
+                return Response(
+                    {
+                        "success": False,
+                        "message": "This invitation has already been accepted and cannot be resent.",
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            email = old_invitation.email
+
+            # Invalidate the old invitation
+            old_invitation.invalidate()
+
+            request.user.log_event(
+                f"Invalidated invitation for {email} to resend new invitation",
+                "billing_group",
+            )
+
+            # Create new invitation
+            new_invitation = BillingGroupInvite.objects.create(
+                email=email,
+                billing_group=user_profile.billing_group,
+                invited_by=request.user,
+            )
+
+            # Send new invitation email
+            from services.emails import send_single_email
+
+            subject = f"You're invited to join {config.SITE_OWNER}"
+            billing_group_name = user_profile.billing_group.name
+            inviter_name = user_profile.get_full_name()
+
+            message = (
+                f"Hi there!<br><br>"
+                f"{inviter_name} has invited you to join {config.SITE_OWNER} "
+                f"and be part of their billing group '{billing_group_name}'.<br><br>"
+                f"<strong>Great news:</strong> You won't need to provide payment information! "
+                f"Your membership will be covered by {inviter_name}'s billing group.<br><br>"
+                f"To accept this invitation:<br>"
+                f"1. Click the button below to register<br>"
+                f"2. Complete the registration process<br>"
+                f"3. Verify your email address<br>"
+                f"4. You'll automatically be added to the billing group!<br><br>"
+                f"This invitation will expire in 7 days."
+            )
+
+            registration_url = (
+                f"{config.SITE_URL}/register?invite={new_invitation.invitation_token}"
+            )
+
+            try:
+                send_single_email(
+                    to_email=email,
+                    subject=subject,
+                    template_vars={
+                        "title": subject,
+                        "message": message,
+                        "link": registration_url,
+                        "btn_text": "Accept Invitation",
+                    },
+                    template_name="email_with_button.html",
+                    reply_to=request.user.email,
+                    user=request.user,
+                )
+
+                request.user.log_event(
+                    f"Resent billing group invitation to {email} for '{billing_group_name}' (token: {new_invitation.invitation_token})",
+                    "billing_group",
+                )
+
+                return Response(
+                    {
+                        "success": True,
+                        "message": f"Invitation resent successfully to {email}",
+                    }
+                )
+
+            except Exception as e:
+                import sentry_sdk
+
+                sentry_sdk.capture_exception(e)
+                # Delete the new invitation if email failed
+                new_invitation.delete()
+                return Response(
+                    {
+                        "success": False,
+                        "message": "Failed to send invitation email. Please try again.",
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+
+        except BillingGroupInvite.DoesNotExist:
+            return Response(
+                {
+                    "success": False,
+                    "message": "Invitation not found.",
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+
+class CancelBillingGroupInvitation(APIView):
+    """
+    delete: cancels a pending invitation
+    """
+
+    def delete(self, request, invitation_id):
+        user_profile = request.user.profile
+
+        # Check if user is primary member of a billing group
+        if (
+            not user_profile.billing_group
+            or user_profile.billing_group.primary_member != user_profile
+        ):
+            return Response(
+                {
+                    "success": False,
+                    "message": "You must be the primary member of a billing group to cancel invitations.",
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        from profile.models import BillingGroupInvite
+
+        try:
+            invitation = BillingGroupInvite.objects.get(
+                id=invitation_id, billing_group=user_profile.billing_group
+            )
+
+            # Check if invitation was already accepted
+            if invitation.accepted:
+                return Response(
+                    {
+                        "success": False,
+                        "message": "This invitation has already been accepted and cannot be cancelled.",
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            email = invitation.email
+
+            # Invalidate the invitation
+            invitation.invalidate()
+
+            request.user.log_event(
+                f"Cancelled invitation for {email} to billing group '{user_profile.billing_group.name}'",
+                "billing_group",
+            )
+
+            return Response(
+                {
+                    "success": True,
+                    "message": f"Invitation to {email} cancelled successfully",
+                }
+            )
+
+        except BillingGroupInvite.DoesNotExist:
+            return Response(
+                {
+                    "success": False,
+                    "message": "Invitation not found.",
                 },
                 status=status.HTTP_404_NOT_FOUND,
             )

@@ -102,4 +102,19 @@ urlpatterns = [
         views.GetBillingGroupInvitation.as_view(),
         name="GetBillingGroupInvitation",
     ),
+    path(
+        "api/billing/billing-group/invitations/",
+        views.ListBillingGroupInvitations.as_view(),
+        name="ListBillingGroupInvitations",
+    ),
+    path(
+        "api/billing/billing-group/invitations/<int:invitation_id>/resend/",
+        views.ResendBillingGroupInvitation.as_view(),
+        name="ResendBillingGroupInvitation",
+    ),
+    path(
+        "api/billing/billing-group/invitations/<int:invitation_id>/cancel/",
+        views.CancelBillingGroupInvitation.as_view(),
+        name="CancelBillingGroupInvitation",
+    ),
 ]

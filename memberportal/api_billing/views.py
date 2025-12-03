@@ -2274,3 +2274,104 @@ class MemberBillingGroupLeave(StripeAPIView):
                 "message": f"Successfully left billing group '{billing_group_name}'",
             }
         )
+
+
+class InviteNonMemberToRegister(APIView):
+    """
+    post: sends an invitation email to a non-member to register and join the billing group.
+    """
+
+    def post(self, request):
+        body = request.data
+        user_profile = request.user.profile
+
+        # Check if user is in a billing group and is the primary member
+        if (
+            not user_profile.billing_group
+            or user_profile.billing_group.primary_member != user_profile
+        ):
+            return Response(
+                {
+                    "success": False,
+                    "message": "You must be the primary member of a billing group to send invitations.",
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        email = body.get("email")
+        if not email:
+            return Response(
+                {"success": False, "message": "Email address is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Check if email already exists
+        from profile.models import Profile
+
+        if Profile.objects.filter(user__email=email).exists():
+            return Response(
+                {
+                    "success": False,
+                    "message": "This email address is already registered. Please add them to your billing group directly.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Send invitation email
+        from services.emails import send_single_email
+
+        subject = f"You're invited to join {config.SITE_OWNER}"
+        billing_group_name = user_profile.billing_group.name
+        inviter_name = user_profile.get_full_name()
+
+        message = (
+            f"Hi there!<br><br>"
+            f"{inviter_name} has invited you to join {config.SITE_OWNER} "
+            f"and be part of their billing group '{billing_group_name}'.<br><br>"
+            f"To accept this invitation, you'll need to:<br>"
+            f"1. Register for an account at {config.SITE_OWNER}<br>"
+            f"2. Complete the registration process<br>"
+            f"3. Contact {inviter_name} to be added to the billing group<br><br>"
+            f"Click the button below to get started!"
+        )
+
+        registration_url = f"{config.SITE_URL}/register"
+
+        try:
+            send_single_email(
+                to_email=email,
+                subject=subject,
+                template_vars={
+                    "title": subject,
+                    "message": message,
+                    "link": registration_url,
+                    "btn_text": "Register Now",
+                },
+                template_name="email_with_button.html",
+                reply_to=request.user.email,
+                user=request.user,
+            )
+
+            request.user.log_event(
+                f"Sent registration invitation to {email} for billing group '{billing_group_name}'",
+                "billing_group",
+            )
+
+            return Response(
+                {
+                    "success": True,
+                    "message": f"Invitation sent successfully to {email}",
+                }
+            )
+
+        except Exception as e:
+            import sentry_sdk
+
+            sentry_sdk.capture_exception(e)
+            return Response(
+                {
+                    "success": False,
+                    "message": "Failed to send invitation email. Please try again.",
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )

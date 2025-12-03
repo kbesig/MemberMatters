@@ -772,6 +772,16 @@ export default {
     leaveBillingGroupRedirect:
       'You will be redirected to select a new membership plan after leaving.',
     leftBillingGroup: 'Successfully left the billing group',
+    noMemberFoundWithEmail:
+      'No member found with email address "{email}". They need to join the makerspace first.',
+    inviteToJoinMakerspace:
+      'Would you like to send them an invitation to register as a member?',
+    verifyEmail: 'Re-enter email to confirm',
+    verifyEmailHint: 'Please type the email address again to verify',
+    verifyEmailRequired: 'Please re-enter the email address to confirm',
+    emailMismatch: 'Email addresses do not match. Please check and try again.',
+    invitationSent:
+      'Invitation sent successfully to {email}. They will receive an email with instructions to register.',
     button: {
       submit: 'Submit',
       cancel: 'Cancel',
@@ -792,6 +802,7 @@ export default {
       inviteMember: 'Invite Member',
       cancelInvite: 'Cancel Invite',
       actions: 'Actions',
+      sendInvitation: 'Send Invitation to Join',
     },
   },
 };

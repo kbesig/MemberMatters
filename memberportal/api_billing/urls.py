@@ -92,4 +92,9 @@ urlpatterns = [
         views.MemberBillingGroupLeave.as_view(),
         name="MemberBillingGroupLeave",
     ),
+    path(
+        "api/billing/billing-group/invite-nonmember/",
+        views.InviteNonMemberToRegister.as_view(),
+        name="InviteNonMemberToRegister",
+    ),
 ]

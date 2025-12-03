@@ -207,7 +207,48 @@
         </q-card-section>
 
         <q-card-section>
-          <q-form @submit="addMember" class="q-gutter-md">
+          <!-- Show invite option when member not found -->
+          <div v-if="showInviteNonMember" class="q-gutter-md">
+            <div class="text-body1">
+              {{
+                $t('billing.noMemberFoundWithEmail', {
+                  email: nonMemberEmail,
+                })
+              }}
+            </div>
+            <div class="text-body2 text-grey-7 q-mb-md">
+              {{ $t('billing.inviteToJoinMakerspace') }}
+            </div>
+
+            <q-input
+              v-model="verifyEmail"
+              :label="$t('billing.verifyEmail')"
+              :hint="$t('billing.verifyEmailHint')"
+              :error="!!verifyEmailError"
+              :error-message="verifyEmailError"
+              outlined
+              dense
+              type="email"
+              @update:model-value="verifyEmailError = ''"
+            />
+
+            <div class="row justify-end q-gutter-sm q-mt-md">
+              <q-btn
+                :label="$t('button.cancel')"
+                color="grey"
+                @click="cancelNonMemberInvite"
+                flat
+              />
+              <q-btn
+                :label="$t('billing.button.sendInvitation')"
+                color="primary"
+                @click="inviteNonMemberToJoin"
+              />
+            </div>
+          </div>
+
+          <!-- Normal add member form -->
+          <q-form v-else @submit="addMember" class="q-gutter-md">
             <q-input
               v-model="addMemberForm.email"
               :label="$t('billing.memberEmail')"
@@ -334,6 +375,10 @@ export default defineComponent({
       billingGroup: null,
       pendingInvite: null,
       addMemberError: '',
+      showInviteNonMember: false,
+      nonMemberEmail: '',
+      verifyEmail: '',
+      verifyEmailError: '',
       createForm: {
         name: '',
       },
@@ -440,6 +485,10 @@ export default defineComponent({
       this.showAddMemberDialog = false;
       this.addMemberForm.email = '';
       this.addMemberError = '';
+      this.showInviteNonMember = false;
+      this.nonMemberEmail = '';
+      this.verifyEmail = '';
+      this.verifyEmailError = '';
     },
 
     async addMember() {
@@ -475,11 +524,81 @@ export default defineComponent({
         console.error('Error response data:', error.response?.data);
         console.error('Form data sent:', this.addMemberForm);
 
-        this.addMemberError =
+        const errorMessage =
+          error.response?.data?.message || this.$t('error.requestFailed');
+
+        // Check if the error is "member not found"
+        if (
+          error.response?.status === 404 &&
+          errorMessage.includes('No member found')
+        ) {
+          // Store the email and show invitation option
+          this.nonMemberEmail = this.addMemberForm.email;
+          this.showInviteNonMember = true;
+          this.addMemberError = '';
+        } else {
+          this.addMemberError = errorMessage;
+        }
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async inviteNonMemberToJoin() {
+      // Clear any previous error
+      this.verifyEmailError = '';
+
+      // Validate that email is entered
+      if (!this.verifyEmail || !this.verifyEmail.trim()) {
+        this.verifyEmailError = this.$t('billing.verifyEmailRequired');
+        return;
+      }
+
+      // Validate that emails match
+      if (
+        this.verifyEmail.toLowerCase() !== this.nonMemberEmail.toLowerCase()
+      ) {
+        this.verifyEmailError = this.$t('billing.emailMismatch');
+        return;
+      }
+
+      this.loading = true;
+      try {
+        const response = await this.$axios.post(
+          '/api/billing/billing-group/invite-nonmember/',
+          {
+            email: this.nonMemberEmail,
+          }
+        );
+
+        if (response.data.success) {
+          this.$q.notify({
+            type: 'positive',
+            message:
+              this.$t('billing.invitationSent', {
+                email: this.nonMemberEmail,
+              }) || response.data.message,
+          });
+          this.showInviteNonMember = false;
+          this.closeAddMemberDialog();
+        } else {
+          this.verifyEmailError =
+            response.data.message || this.$t('error.requestFailed');
+        }
+      } catch (error) {
+        console.error('Error sending invitation:', error);
+        this.verifyEmailError =
           error.response?.data?.message || this.$t('error.requestFailed');
       } finally {
         this.loading = false;
       }
+    },
+
+    cancelNonMemberInvite() {
+      this.showInviteNonMember = false;
+      this.nonMemberEmail = '';
+      this.verifyEmail = '';
+      this.verifyEmailError = '';
     },
 
     async removeMember(member) {

@@ -611,6 +611,13 @@ class Profile(ExportModelOperationsMixin("profile"), models.Model):
         default=None, blank=True, null=True, editable=False
     )
 
+    # Temporary storage for pending billing group invitation during registration
+    pending_billing_group_invite_token = models.UUIDField(
+        null=True,
+        blank=True,
+        help_text="Temporarily stores invitation token during registration process",
+    )
+
     def __str__(self):
         return str(self.user)
 

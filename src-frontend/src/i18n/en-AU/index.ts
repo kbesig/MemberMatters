@@ -724,6 +724,13 @@ export default {
     loginHere: 'Login Here',
     registrationComplete:
       'Registration complete. Please check your email and click the link to verify your email address.',
+    invitationBanner: {
+      title: "You've Been Invited!",
+      message:
+        '{inviter} has invited you to join their billing group "{group}".',
+      noPaymentRequired:
+        'No payment information required - your membership will be covered by the billing group.',
+    },
   },
   verifyEmail: {
     error:

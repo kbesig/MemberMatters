@@ -14,6 +14,43 @@
       </h6>
 
       <q-card-section>
+        <!-- Invitation Banner -->
+        <q-banner
+          v-if="invitationInfo"
+          class="bg-positive text-white q-mb-md"
+          rounded
+        >
+          <template v-slot:avatar>
+            <q-icon name="mail" color="white" />
+          </template>
+          <div class="text-subtitle2">
+            {{ $t('registrationCard.invitationBanner.title') }}
+          </div>
+          <div class="text-caption">
+            {{
+              $t('registrationCard.invitationBanner.message', {
+                inviter: invitationInfo.inviter_name,
+                group: invitationInfo.billing_group_name,
+              })
+            }}
+          </div>
+          <div class="text-caption q-mt-xs">
+            {{ $t('registrationCard.invitationBanner.noPaymentRequired') }}
+          </div>
+        </q-banner>
+
+        <!-- Expired/Invalid Invitation Banner -->
+        <q-banner
+          v-if="invitationError"
+          class="bg-negative text-white q-mb-md"
+          rounded
+        >
+          <template v-slot:avatar>
+            <q-icon name="warning" color="white" />
+          </template>
+          {{ invitationError }}
+        </q-banner>
+
         <p class="q-pb-md">
           {{ $t('form.allFieldsRequired') }}
         </p>
@@ -165,6 +202,9 @@ export default defineComponent({
       complete: false,
       buttonLoading: false,
       isPwd: true,
+      inviteToken: null as string | null,
+      invitationInfo: null as any,
+      invitationError: null as string | null,
       form: {
         firstName: null,
         lastName: null,
@@ -178,6 +218,12 @@ export default defineComponent({
   },
   mounted() {
     if (this.loggedIn) this.$router.push({ name: 'dashboard' });
+
+    // Check for invitation token in query parameters
+    this.inviteToken = this.$route.query.invite as string | null;
+    if (this.inviteToken) {
+      this.fetchInvitationDetails();
+    }
   },
   computed: {
     ...mapGetters('profile', ['loggedIn']),
@@ -195,6 +241,31 @@ export default defineComponent({
       this.register();
     },
     /**
+     * Fetches the invitation details from the API
+     */
+    fetchInvitationDetails() {
+      if (!this.inviteToken) return;
+
+      this.$axios
+        .get(`/api/billing/billing-group/invitation/${this.inviteToken}/`)
+        .then((response) => {
+          if (response.data.success) {
+            this.invitationInfo = response.data;
+            this.invitationError = null;
+            // Pre-fill the email field with the invited email
+            this.form.email = response.data.invited_email;
+          }
+        })
+        .catch((error) => {
+          this.invitationInfo = null;
+          if (error.response?.data?.message) {
+            this.invitationError = error.response.data.message;
+          } else {
+            this.invitationError = this.$t('error.requestFailed') as string;
+          }
+        });
+    },
+    /**
      * This sends the registration API request to register the user.
      */
     register() {
@@ -202,16 +273,23 @@ export default defineComponent({
       this.error = false;
       this.buttonLoading = true;
 
+      const payload: any = {
+        firstName: this.form.firstName,
+        lastName: this.form.lastName,
+        email: this.form.email,
+        screenName: this.form.screenName,
+        mobile: this.form.mobile,
+        password: this.form.password,
+        vehicleRegistrationPlate: this.form.vehicleRegistrationPlate,
+      };
+
+      // Include invitation token if present
+      if (this.inviteToken) {
+        payload.inviteToken = this.inviteToken;
+      }
+
       this.$axios
-        .post('/api/register/', {
-          firstName: this.form.firstName,
-          lastName: this.form.lastName,
-          email: this.form.email,
-          screenName: this.form.screenName,
-          mobile: this.form.mobile,
-          password: this.form.password,
-          vehicleRegistrationPlate: this.form.vehicleRegistrationPlate,
-        })
+        .post('/api/register/', payload)
         .then(() => {
           this.failed = false;
           this.error = false;
@@ -223,6 +301,15 @@ export default defineComponent({
           if (error.response.status === 409) {
             this.errorExists = error.response.data.message;
             this.error = false;
+          } else if (
+            error.response.status === 410 ||
+            error.response.status === 404 ||
+            error.response.status === 400
+          ) {
+            // Invitation-related errors
+            this.invitationError = error.response.data.message;
+            this.error = false;
+            this.errorExists = false;
           } else {
             this.error = true;
             this.errorExists = false;

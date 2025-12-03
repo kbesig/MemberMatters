@@ -660,8 +660,10 @@ class Register(APIView):
 
     def post(self, request):
         body = request.data
+        invite_token = body.get("inviteToken")
+        email = body.get("email").lower()
 
-        if User.objects.filter(email=body.get("email").lower()).exists():
+        if User.objects.filter(email=email).exists():
             return Response(
                 {"message": "error.accountAlreadyExists"},
                 status=status.HTTP_409_CONFLICT,
@@ -672,6 +674,55 @@ class Register(APIView):
                 {"message": "error.screenNameAlreadyExists"},
                 status=status.HTTP_409_CONFLICT,
             )
+
+        # Validate invitation token if provided
+        invitation = None
+        if invite_token:
+            from profile.models import BillingGroupInvite
+
+            try:
+                invitation = BillingGroupInvite.objects.get(
+                    invitation_token=invite_token
+                )
+
+                # Check if invitation is still valid
+                if invitation.invalidated:
+                    return Response(
+                        {
+                            "message": f"This invitation has been cancelled. Please contact {invitation.invited_by.get_full_name()} to request a new invitation."
+                        },
+                        status=status.HTTP_410_GONE,
+                    )
+
+                if invitation.accepted:
+                    return Response(
+                        {"message": "This invitation has already been accepted."},
+                        status=status.HTTP_410_GONE,
+                    )
+
+                if invitation.is_expired():
+                    inviter = invitation.invited_by
+                    return Response(
+                        {
+                            "message": f"This invitation has expired. Please contact {inviter.get_full_name()} at {inviter.email} to request a new invitation."
+                        },
+                        status=status.HTTP_410_GONE,
+                    )
+
+                # Check if email matches the invitation
+                if invitation.email != email:
+                    return Response(
+                        {
+                            "message": f"This invitation was sent to {invitation.email}. Please use that email address or request a new invitation."
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+            except BillingGroupInvite.DoesNotExist:
+                return Response(
+                    {"message": "This invitation link is invalid or has been removed."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
 
         new_user = User.objects.create(
             email=body.get("email").lower(),
@@ -688,6 +739,7 @@ class Register(APIView):
             screen_name=body.get("screenName"),
             phone=body.get("mobile"),
             vehicle_registration_plate=body.get("vehicleRegistrationPlate"),
+            pending_billing_group_invite_token=invite_token if invitation else None,
         )
 
         profile.save()
@@ -784,6 +836,174 @@ class VerifyEmail(APIView):
         ) < verification_token.creation_date + datetime.timedelta(hours=24):
             verification_token.user.email_verified = True
             verification_token.user.save()
+
+            # Check if user has a pending billing group invitation
+            profile = verification_token.user.profile
+            if profile.pending_billing_group_invite_token:
+                try:
+                    from profile.models import (
+                        BillingGroupInvite,
+                        BillingGroupMemberAddon,
+                    )
+                    from api_admin_tools.models import SubscriptionAddon
+                    import stripe
+
+                    stripe.api_key = config.STRIPE_SECRET_KEY
+
+                    invitation = BillingGroupInvite.objects.get(
+                        invitation_token=profile.pending_billing_group_invite_token
+                    )
+
+                    # Double-check invitation is still valid
+                    if invitation.is_valid():
+                        billing_group = invitation.billing_group
+                        primary_member = billing_group.primary_member
+
+                        # Add user to billing group
+                        profile.billing_group = billing_group
+                        profile.subscription_status = "group_active"
+
+                        # Get the billing group addon
+                        try:
+                            billing_group_addon = SubscriptionAddon.objects.get(
+                                name="Billing Group Member"
+                            )
+
+                            # Lock in the current addon pricing for this member
+                            member_addon = BillingGroupMemberAddon.objects.create(
+                                billing_group=billing_group,
+                                member=profile,
+                                addon=billing_group_addon,
+                                locked_cost=billing_group_addon.cost,
+                                locked_currency=billing_group_addon.currency,
+                                locked_interval=billing_group_addon.interval,
+                                locked_interval_count=billing_group_addon.interval_count,
+                            )
+
+                            # Create Stripe subscription item on primary member's subscription
+                            if primary_member.stripe_subscription_id:
+                                try:
+                                    # Create or retrieve a price for this locked pricing
+                                    stripe_price = stripe.Price.create(
+                                        unit_amount=member_addon.locked_cost,
+                                        currency=member_addon.locked_currency.lower(),
+                                        recurring={
+                                            "interval": member_addon.locked_interval,
+                                            "interval_count": member_addon.locked_interval_count,
+                                        },
+                                        product_data={
+                                            "name": f"Billing Group Member: {profile.get_full_name()}",
+                                        },
+                                    )
+
+                                    # Add the subscription item to the primary member's subscription
+                                    subscription_item = stripe.SubscriptionItem.create(
+                                        subscription=primary_member.stripe_subscription_id,
+                                        price=stripe_price.id,
+                                        proration_behavior="create_prorations",
+                                    )
+
+                                    # Store the Stripe IDs
+                                    member_addon.stripe_price_id = stripe_price.id
+                                    member_addon.stripe_subscription_item_id = (
+                                        subscription_item.id
+                                    )
+                                    member_addon.save()
+
+                                    # Log the successful addition
+                                    verification_token.user.log_event(
+                                        f"Automatically added to billing group '{billing_group.name}' via invitation",
+                                        "billing_group",
+                                    )
+
+                                    primary_member.user.log_event(
+                                        f"{profile.get_full_name()} accepted invitation and joined billing group '{billing_group.name}'",
+                                        "billing_group",
+                                    )
+
+                                except stripe.error.StripeError as e:
+                                    sentry_sdk.capture_exception(e)
+                                    logger.error(
+                                        f"Failed to create Stripe subscription item for billing group member: {e}"
+                                    )
+                                    # Continue anyway - admin can fix manually
+
+                        except SubscriptionAddon.DoesNotExist:
+                            logger.error(
+                                "Billing Group Member addon not found in database"
+                            )
+                            # Continue anyway - user still gets added to group
+
+                        # Mark invitation as accepted
+                        invitation.accept()
+
+                        # Clear the pending token
+                        profile.pending_billing_group_invite_token = None
+                        profile.save()
+
+                        # Send notification emails
+                        from services.emails import send_single_email
+
+                        # Email to new member
+                        try:
+                            send_single_email(
+                                to_email=verification_token.user.email,
+                                subject=f"Welcome to {billing_group.name}",
+                                template_vars={
+                                    "title": f"Welcome to {billing_group.name}!",
+                                    "message": (
+                                        f"Hi {profile.first_name},<br><br>"
+                                        f"You've been successfully added to the billing group '{billing_group.name}' "
+                                        f"managed by {primary_member.get_full_name()}.<br><br>"
+                                        f"Your membership is now active and all charges will be billed to {primary_member.get_full_name()}'s payment method.<br><br>"
+                                        f"If you have any questions, please contact {primary_member.get_full_name()} at {primary_member.user.email}."
+                                    ),
+                                    "link": f"{config.SITE_URL}/profile",
+                                    "btn_text": "View Profile",
+                                },
+                                template_name="email_with_button.html",
+                                user=verification_token.user,
+                            )
+                        except Exception as e:
+                            sentry_sdk.capture_exception(e)
+                            logger.error(
+                                f"Failed to send welcome email to new billing group member: {e}"
+                            )
+
+                        # Email to primary member
+                        try:
+                            send_single_email(
+                                to_email=primary_member.user.email,
+                                subject=f"{profile.get_full_name()} joined your billing group",
+                                template_vars={
+                                    "title": "New Member Joined Your Billing Group",
+                                    "message": (
+                                        f"Hi {primary_member.first_name},<br><br>"
+                                        f"{profile.get_full_name()} has accepted your invitation and joined your billing group '{billing_group.name}'.<br><br>"
+                                        f"Their membership charges will now be added to your subscription."
+                                    ),
+                                    "link": f"{config.SITE_URL}/billing",
+                                    "btn_text": "Manage Billing Group",
+                                },
+                                template_name="email_with_button.html",
+                                user=primary_member.user,
+                            )
+                        except Exception as e:
+                            sentry_sdk.capture_exception(e)
+                            logger.error(
+                                f"Failed to send notification email to primary member: {e}"
+                            )
+
+                except BillingGroupInvite.DoesNotExist:
+                    logger.warning(
+                        f"Invitation token {profile.pending_billing_group_invite_token} not found"
+                    )
+                    profile.pending_billing_group_invite_token = None
+                    profile.save()
+                except Exception as e:
+                    sentry_sdk.capture_exception(e)
+                    logger.error(f"Error processing billing group invitation: {e}")
+                    # Continue with normal flow - user can be added manually
 
             # auto log the user in after verifying their email
             login(request, verification_token.user)

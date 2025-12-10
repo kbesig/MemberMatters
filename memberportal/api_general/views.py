@@ -863,10 +863,26 @@ class VerifyEmail(APIView):
                         profile.billing_group = billing_group
                         profile.subscription_status = "group_active"
 
-                        # Get the billing group addon
+                        # Get the billing group addon using configured ID
                         try:
+                            current_addon_id = getattr(
+                                config, "CURRENT_ADDITIONAL_MEMBER_ADDON", None
+                            )
+
+                            if (
+                                not current_addon_id
+                                or not str(current_addon_id).strip()
+                            ):
+                                logger.error(
+                                    "CURRENT_ADDITIONAL_MEMBER_ADDON not configured - cannot create Stripe subscription item"
+                                )
+                                # Continue anyway - user still gets added to group
+                                raise SubscriptionAddon.DoesNotExist
+
                             billing_group_addon = SubscriptionAddon.objects.get(
-                                name="Billing Group Member"
+                                id=int(current_addon_id),
+                                addon_type="additional_member",
+                                visible=True,
                             )
 
                             # Lock in the current addon pricing for this member
@@ -930,7 +946,12 @@ class VerifyEmail(APIView):
 
                         except SubscriptionAddon.DoesNotExist:
                             logger.error(
-                                "Billing Group Member addon not found in database"
+                                "Additional member addon not found in database or CURRENT_ADDITIONAL_MEMBER_ADDON not configured"
+                            )
+                            # Continue anyway - user still gets added to group
+                        except ValueError:
+                            logger.error(
+                                f"Invalid CURRENT_ADDITIONAL_MEMBER_ADDON value: {current_addon_id}"
                             )
                             # Continue anyway - user still gets added to group
 

@@ -2,6 +2,11 @@
   <q-page class="row flex content-start justify-center">
     <div v-if="loggedIn">
       <div class="column flex content-start justify-center">
+        <!-- Billing Group Invitation Banner -->
+        <div class="q-ma-md" style="width: 100%">
+          <billing-group-invite-banner />
+        </div>
+
         <q-banner
           v-if="
             profile.memberStatus !== 'active' &&
@@ -51,11 +56,12 @@ import { mapGetters, mapActions } from 'vuex';
 import QuickCards from '@components/QuickCards.vue';
 import { Platform } from 'quasar';
 import DashboardCard from '@components/DashboardCard.vue';
+import BillingGroupInviteBanner from '@components/Billing/BillingGroupInviteBanner.vue';
 import icons from 'src/icons';
 
 export default {
   name: 'DashboardPage',
-  components: { QuickCards, DashboardCard },
+  components: { QuickCards, DashboardCard, BillingGroupInviteBanner },
   computed: {
     Platform() {
       return Platform;

@@ -2,6 +2,9 @@
   <div class="q-gutter-md">
     <div class="text-h5 text-center">{{ $tc('tiers.becomeMember') }}</div>
 
+    <!-- Billing Group Invitation Banner -->
+    <billing-group-invite-banner @invite-responded="handleInviteResponse" />
+
     <div class="column flex content-start justify-center">
       <q-banner
         v-if="profile.memberStatus === 'Account Only'"
@@ -212,6 +215,7 @@ import { defineComponent } from 'vue';
 import TierCard from '@components/Billing/TierCard.vue';
 import PlanCard from '@components/Billing/PlanCard.vue';
 import MemberBucksManageBilling from '@components/MemberBucksManageBilling.vue';
+import BillingGroupInviteBanner from '@components/Billing/BillingGroupInviteBanner.vue';
 import icons from '@icons';
 
 export default defineComponent({
@@ -239,12 +243,21 @@ export default defineComponent({
     TierCard,
     PlanCard,
     MemberBucksManageBilling,
+    BillingGroupInviteBanner,
   },
   mounted() {
     this.getTiers();
   },
   methods: {
     ...mapActions('profile', ['getProfile']),
+    handleInviteResponse(action) {
+      // The banner component handles the redirect, so we don't need to do anything here
+      // But we could refresh the page or take other actions if needed
+      if (action === 'accept') {
+        // User will be redirected by the banner component
+        console.log('User accepted billing group invitation');
+      }
+    },
     getTiers() {
       this.$axios.get('/api/billing/tiers/').then((response) => {
         this.tiers = response.data;

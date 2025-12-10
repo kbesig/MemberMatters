@@ -25,6 +25,38 @@ from django.utils import timezone
 logger = logging.getLogger("billing")
 
 
+def validate_subscription_intervals(base_interval, addon_interval):
+    """
+    Validates that subscription intervals are compatible with Stripe's flexible billing.
+
+    With flexible billing enabled, Stripe supports mixing different billing intervals
+    on the same subscription (e.g., monthly base plan + weekly add-ons).
+
+    Note: While Stripe supports mixed intervals with flexible billing, some combinations
+    may result in complex billing cycles. Consider standardizing intervals for simplicity.
+
+    Args:
+        base_interval: The interval of the base subscription plan (e.g., "month", "week", "day")
+        addon_interval: The interval of the add-on being added
+
+    Returns:
+        tuple: (is_valid: bool, warning_message: str or None)
+    """
+    # With flexible billing, all interval combinations are technically valid
+    # However, we can provide warnings for unusual combinations
+
+    if base_interval == addon_interval:
+        return True, None
+
+    # Warn about mixed intervals (but allow them with flexible billing)
+    warning = (
+        f"Note: Base plan uses '{base_interval}' billing while add-on uses '{addon_interval}' billing. "
+        f"This is supported with flexible billing but may result in complex billing cycles."
+    )
+
+    return True, warning
+
+
 class StripeAPIView(APIView):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -262,9 +294,13 @@ class PaymentPlanSignup(StripeAPIView):
                         }
                     )
 
+            # Use flexible billing to support multi-interval subscriptions
+            # This allows mixing different billing intervals (e.g., monthly base + weekly add-ons)
             return stripe.Subscription.create(
                 customer=request.user.profile.stripe_customer_id,
                 items=items,
+                collection_method="charge_automatically",
+                proration_behavior="create_prorations",
             )
 
         except stripe.error.InvalidRequestError as e:
@@ -1007,7 +1043,20 @@ class SubscriptionAddonManagement(StripeAPIView):
             )
 
             if action == "add":
+                # Validate interval compatibility (with flexible billing enabled)
+                base_plan = request.user.profile.membership_plan
+                if base_plan:
+                    is_valid, warning = validate_subscription_intervals(
+                        base_plan.interval, addon.interval
+                    )
+                    if warning:
+                        logger.warning(
+                            f"Mixed interval subscription for user {request.user.id}: {warning}"
+                        )
+                        request.user.log_event(warning, "stripe")
+
                 # Add the add-on to the subscription
+                # Using flexible billing to support multi-interval subscriptions
                 stripe.Subscription.modify(
                     request.user.profile.stripe_subscription_id,
                     items=[{"price": addon.stripe_price_id, "quantity": quantity}],

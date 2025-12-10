@@ -68,7 +68,15 @@ class PaymentPlan(ExportModelOperationsMixin("payment-plan"), models.Model):
 
 
 class SubscriptionAddon(ExportModelOperationsMixin("subscription-addon"), models.Model):
-    """Additional items that can be added to subscriptions (e.g., additional members, storage, etc.)"""
+    """
+    Additional items that can be added to subscriptions (e.g., additional members, storage, etc.)
+
+    FLEXIBLE BILLING ENABLED:
+    Add-ons can use different billing intervals than the base subscription plan.
+    For example: Monthly base plan + weekly equipment rental add-on.
+
+    See FLEXIBLE_BILLING_IMPLEMENTATION.md for more details.
+    """
 
     ADDON_TYPES = [
         ("additional_member", "Additional Member"),

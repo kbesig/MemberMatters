@@ -65,6 +65,7 @@ class StripeAPIView(APIView):
 
         try:
             stripe.api_key = config.STRIPE_SECRET_KEY
+            stripe.api_version = "2025-06-30.basil"
         except OperationalError as error:
             capture_exception(error)
 
@@ -301,6 +302,7 @@ class PaymentPlanSignup(StripeAPIView):
                 items=items,
                 collection_method="charge_automatically",
                 proration_behavior="create_prorations",
+                billing_mode={"type": "flexible"},
             )
 
         except stripe.error.InvalidRequestError as e:
@@ -386,6 +388,10 @@ class PaymentPlanSignup(StripeAPIView):
         addons = request.data.get("addons", [])
 
         new_subscription = self.create_subscription(request, new_plan, addons)
+
+        # If create_subscription returned a Response (error), return it immediately
+        if isinstance(new_subscription, Response):
+            return new_subscription
 
         try:
             if new_subscription.status == "active":
@@ -677,8 +683,9 @@ class MembershipPlanCostSummary(StripeAPIView):
             )
 
         try:
-            # Get the upcoming invoice to see actual charges including prorations
-            upcoming_invoice = stripe.Invoice.upcoming(
+            # Get the upcoming invoice preview to see actual charges including prorations
+            # Using create_preview for flexible billing mode support
+            upcoming_invoice = stripe.Invoice.create_preview(
                 customer=profile.stripe_customer_id,
                 subscription=profile.stripe_subscription_id,
             )
@@ -689,6 +696,16 @@ class MembershipPlanCostSummary(StripeAPIView):
             for line_item in upcoming_invoice.lines.data:
                 # Use Stripe's description if available, otherwise fall back to our own logic
                 description = line_item.description
+
+                # Check if this is a proration using the new API structure
+                is_proration = False
+                if hasattr(line_item, "parent") and line_item.parent:
+                    if hasattr(line_item.parent, "subscription_item_details"):
+                        is_proration = getattr(
+                            line_item.parent.subscription_item_details,
+                            "proration",
+                            False,
+                        )
 
                 if not description:
                     # Fallback logic for missing descriptions
@@ -727,11 +744,7 @@ class MembershipPlanCostSummary(StripeAPIView):
                         "description": description,
                         "cost": line_item.amount,
                         "cost_display": f"${line_item.amount/100:.2f}",
-                        "proration": (
-                            line_item.proration
-                            if hasattr(line_item, "proration")
-                            else False
-                        ),
+                        "proration": is_proration,
                         "period_start": (
                             line_item.period.start if line_item.period else None
                         ),

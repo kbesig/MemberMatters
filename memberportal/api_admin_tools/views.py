@@ -36,6 +36,7 @@ class StripeAPIView(APIView):
 
         try:
             stripe.api_key = config.STRIPE_SECRET_KEY
+            stripe.api_version = "2025-06-30.basil"
         except OperationalError as error:
             capture_exception(error)
 
@@ -1710,6 +1711,7 @@ class BillingGroupMemberManagement(APIView):
                         }
                     ],
                     proration_behavior="create_prorations",
+                    billing_mode={"type": "flexible"},
                     metadata={
                         "user_id": str(member_profile.user.id),
                         "plan_id": str(payment_plan.id),

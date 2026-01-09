@@ -1637,6 +1637,7 @@ class BillingGroupMemberManagement(APIView):
                     return False
 
             # Create the subscription item
+            # This will be prorated to align with the primary subscription's billing cycle (1st of month)
             try:
                 subscription_item = stripe.SubscriptionItem.create(
                     subscription=primary_member.stripe_subscription_id,
@@ -1703,6 +1704,17 @@ class BillingGroupMemberManagement(APIView):
 
             # Create a new Stripe subscription for the member
             try:
+                from datetime import datetime, timezone as dt_timezone
+                from dateutil.relativedelta import relativedelta
+
+                # Calculate billing cycle anchor for the 1st of next month
+                now = datetime.now(dt_timezone.utc)
+                next_month = now + relativedelta(months=1)
+                billing_anchor = datetime(
+                    next_month.year, next_month.month, 1, tzinfo=dt_timezone.utc
+                )
+                billing_anchor_timestamp = int(billing_anchor.timestamp())
+
                 subscription = stripe.Subscription.create(
                     customer=member_profile.stripe_customer_id,
                     items=[
@@ -1712,6 +1724,7 @@ class BillingGroupMemberManagement(APIView):
                     ],
                     proration_behavior="create_prorations",
                     billing_mode={"type": "flexible"},
+                    billing_cycle_anchor=billing_anchor_timestamp,
                     metadata={
                         "user_id": str(member_profile.user.id),
                         "plan_id": str(payment_plan.id),

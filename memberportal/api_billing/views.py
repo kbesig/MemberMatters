@@ -282,6 +282,9 @@ class PaymentPlanSignup(StripeAPIView):
             )
 
         try:
+            from datetime import datetime, timezone as dt_timezone
+            from dateutil.relativedelta import relativedelta
+
             # Start with the main plan
             items = [{"price": new_plan.stripe_id}]
 
@@ -295,14 +298,26 @@ class PaymentPlanSignup(StripeAPIView):
                         }
                     )
 
+            # Calculate billing cycle anchor for the 1st of next month
+            now = datetime.now(dt_timezone.utc)
+            # Get the 1st of next month
+            next_month = now + relativedelta(months=1)
+            billing_anchor = datetime(
+                next_month.year, next_month.month, 1, tzinfo=dt_timezone.utc
+            )
+            billing_anchor_timestamp = int(billing_anchor.timestamp())
+
             # Use flexible billing to support multi-interval subscriptions
             # This allows mixing different billing intervals (e.g., monthly base + weekly add-ons)
+            # All subscriptions are anchored to the 1st of the month
+            # The prorated first period is charged immediately, then regular billing starts on the 1st
             return stripe.Subscription.create(
                 customer=request.user.profile.stripe_customer_id,
                 items=items,
                 collection_method="charge_automatically",
                 proration_behavior="create_prorations",
                 billing_mode={"type": "flexible"},
+                billing_cycle_anchor=billing_anchor_timestamp,
             )
 
         except stripe.error.InvalidRequestError as e:
@@ -1953,6 +1968,10 @@ class MemberBillingGroupInviteResponse(StripeAPIView):
         """
         Create a Stripe subscription item for an additional member in a billing group.
         Uses the locked pricing from BillingGroupMemberAddon.
+
+        Note: The subscription item will inherit the billing cycle anchor from the primary
+        member's subscription (which is set to the 1st of each month). The proration_behavior
+        ensures the member is charged appropriately for the current period.
         """
         try:
             from profile.models import BillingGroupMemberAddon
@@ -1998,6 +2017,7 @@ class MemberBillingGroupInviteResponse(StripeAPIView):
                 )
 
                 # Add the subscription item to the primary member's subscription
+                # This will be prorated to align with the primary subscription's billing cycle (1st of month)
                 subscription_item = stripe.SubscriptionItem.create(
                     subscription=primary_member.stripe_subscription_id,
                     price=stripe_price.id,

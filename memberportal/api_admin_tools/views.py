@@ -791,9 +791,14 @@ class MemberBillingInfo(StripeAPIView):
 
             # if we have a subscription id, fetch the details
             if member.profile.stripe_subscription_id:
-                s = stripe.Subscription.retrieve(
-                    member.profile.stripe_subscription_id,
-                )
+                try:
+                    s = stripe.Subscription.retrieve(
+                        member.profile.stripe_subscription_id,
+                    )
+                except stripe.error.InvalidRequestError as e:
+                    # Subscription doesn't exist in Stripe anymore
+                    capture_exception(e)
+                    s = None
 
             # if we got subscription details
             if s:

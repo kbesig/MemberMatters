@@ -141,6 +141,14 @@ const PageAndRouteConfig: PageAndRouteConfigType[] = [
         component: () => import('pages/AdminTools/AddOns.vue'),
       },
       {
+        icon: icons.interlocks,
+        to: '/manage/shelves',
+        name: 'manageShelves',
+        loggedIn: true,
+        admin: true,
+        component: () => import('pages/AdminTools/ManageShelves.vue'),
+      },
+      {
         icon: icons.stats,
         to: '/tools/stats/',
         name: 'stats',

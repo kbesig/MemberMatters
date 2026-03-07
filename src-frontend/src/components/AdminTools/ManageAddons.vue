@@ -391,11 +391,6 @@ export default defineComponent({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         rowsPerPage: (this as any).$q.screen.xs ? 3 : 10,
       },
-      intervalOptions: [
-        { label: 'Day', value: 'day' },
-        { label: 'Week', value: 'week' },
-        { label: 'Month', value: 'month' },
-      ],
     };
   },
   mounted() {

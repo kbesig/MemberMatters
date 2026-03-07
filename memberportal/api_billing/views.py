@@ -637,11 +637,11 @@ class SubscriptionInfo(StripeAPIView):
                             )
 
                 subscription = {
-                    "billingCycleAnchor": s.billing_cycle_anchor,
-                    "currentPeriodEnd": s.current_period_end,
-                    "cancelAt": s.cancel_at,
-                    "cancelAtPeriodEnd": s.cancel_at_period_end,
-                    "startDate": s.start_date,
+                    "billingCycleAnchor": getattr(s, "billing_cycle_anchor", None),
+                    "currentPeriodEnd": getattr(s, "current_period_end", None),
+                    "cancelAt": getattr(s, "cancel_at", None),
+                    "cancelAtPeriodEnd": getattr(s, "cancel_at_period_end", False),
+                    "startDate": getattr(s, "start_date", None),
                     "membershipTier": request.user.profile.membership_plan.member_tier.get_object(),
                     "membershipPlan": request.user.profile.membership_plan.get_object(),
                     "addons": addons,

@@ -204,6 +204,12 @@
           <billing-group-manager />
         </div>
 
+        <!-- Shelf Rental Manager -->
+        <div class="q-mb-md full-width">
+          <div class="text-h6 q-py-md">Add-ons & Rentals</div>
+          <shelf-rental-manager />
+        </div>
+
         <q-btn
           v-if="['active', 'group_active'].includes(subscriptionStatus)"
           :disable="disableButton"
@@ -234,6 +240,7 @@ import SelectedTier from '@components/Billing/SelectedTier.vue';
 import SignupRequiredSteps from '@components/Billing/SignupRequiredSteps.vue';
 import MemberBucksManageBilling from 'components/MemberBucksManageBilling.vue';
 import BillingGroupManager from '@components/Billing/BillingGroupManager.vue';
+import ShelfRentalManager from '@components/ShelfRental/ShelfRentalManager.vue';
 
 export default defineComponent({
   name: 'MembershipTierPage',
@@ -243,6 +250,7 @@ export default defineComponent({
     SelectedTier,
     SignupRequiredSteps,
     BillingGroupManager,
+    ShelfRentalManager,
   },
   data() {
     return {

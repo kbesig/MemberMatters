@@ -395,6 +395,22 @@ CONSTANCE_CONFIG = {
         "",
         "The ID of the current additional member addon that should be used for billing group pricing locks. Leave empty if none is configured.",
     ),
+    # Shelf Rental Configuration
+    "CURRENT_SHELF_RENTAL_ADDON": (
+        "",
+        "The ID of the current shelf rental addon that should be used for shelf rental pricing. Leave empty if none is configured.",
+    ),
+    "SHELF_RENTAL_ASSIGNMENT_EMAIL_SUBJECT": (
+        "Shelf #{shelf_number} Assigned - Available {available_date}",
+        "The subject line for shelf assignment notification emails. Use {shelf_number} and {available_date} as placeholders.",
+    ),
+    "SHELF_RENTAL_ASSIGNMENT_EMAIL_BODY": (
+        "Congratulations! You have been assigned Shelf #{shelf_number}.\n\n"
+        "Your shelf will be available starting on {available_date}.\n\n"
+        "Please note the shelf number for your records. If you have any questions, "
+        "please contact us.",
+        "The body of the shelf assignment notification email. Use {shelf_number}, {available_date}, and {member_name} as placeholders.",
+    ),
 }
 
 CONSTANCE_CONFIG_FIELDSETS = OrderedDict(
@@ -430,6 +446,14 @@ CONSTANCE_CONFIG_FIELDSETS = OrderedDict(
         ),
         ("Stats Settings", ("ENABLE_STATS_PAGE", "STATS_MAX_DAYS")),
         ("Billing Groups", ("CURRENT_ADDITIONAL_MEMBER_ADDON",)),
+        (
+            "Shelf Rental",
+            (
+                "CURRENT_SHELF_RENTAL_ADDON",
+                "SHELF_RENTAL_ASSIGNMENT_EMAIL_SUBJECT",
+                "SHELF_RENTAL_ASSIGNMENT_EMAIL_BODY",
+            ),
+        ),
         (
             "Sentry Error Reporting",
             (

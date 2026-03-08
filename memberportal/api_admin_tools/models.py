@@ -83,6 +83,7 @@ class SubscriptionAddon(ExportModelOperationsMixin("subscription-addon"), models
         ("storage_upgrade", "Storage Upgrade"),
         ("priority_support", "Priority Support"),
         ("equipment_rental", "Equipment Rental"),
+        ("shelf_rental", "Shelf Rental"),
         ("custom", "Custom Add-on"),
     ]
 

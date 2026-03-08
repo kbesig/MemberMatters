@@ -68,6 +68,7 @@ INSTALLED_APPS = [
     "api_admin_tools",
     "api_billing",
     "api_metrics",
+    "api_shelf_rental",
     "corsheaders",
     "rest_framework",
     "rest_framework_api_key",

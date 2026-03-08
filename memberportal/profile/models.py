@@ -945,3 +945,200 @@ class Profile(ExportModelOperationsMixin("profile"), models.Model):
 
     def has_billing_group(self):
         return self.billing_group is not None
+
+
+class Shelf(ExportModelOperationsMixin("shelf"), models.Model):
+    """
+    Represents a physical shelf that can be rented by members.
+    """
+
+    STATUS_CHOICES = [
+        ("available", "Available"),
+        ("occupied", "Occupied"),
+        ("cancelled", "Cancelled - Next Occupant Assigned"),
+    ]
+
+    id = models.AutoField(primary_key=True)
+    number = models.CharField(
+        max_length=50, unique=True, help_text="Shelf identifier/number"
+    )
+    current_member = models.ForeignKey(
+        "Profile",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="current_shelves",
+        help_text="Current member renting this shelf",
+    )
+    next_member = models.ForeignKey(
+        "Profile",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="next_shelves",
+        help_text="Next member to occupy this shelf (when current rental is cancelled)",
+    )
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default="available"
+    )
+    start_date = models.DateField(
+        null=True, blank=True, help_text="Date when current member started renting"
+    )
+    next_available_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Date when shelf becomes available for next occupant",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Shelf"
+        verbose_name_plural = "Shelves"
+        ordering = ["number"]
+
+    def __str__(self):
+        return f"Shelf {self.number} - {self.get_status_display()}"
+
+    def get_object(self):
+        return {
+            "id": self.id,
+            "number": self.number,
+            "status": self.status,
+            "status_display": self.get_status_display(),
+            "current_member": (
+                self.current_member.get_basic_profile() if self.current_member else None
+            ),
+            "next_member": (
+                self.next_member.get_basic_profile() if self.next_member else None
+            ),
+            "start_date": self.start_date.isoformat() if self.start_date else None,
+            "next_available_date": (
+                self.next_available_date.isoformat()
+                if self.next_available_date
+                else None
+            ),
+        }
+
+
+class ShelfRequest(ExportModelOperationsMixin("shelf_request"), models.Model):
+    """
+    Represents a member's request to rent a shelf.
+    This is the queue for shelf rentals.
+    """
+
+    STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("assigned", "Assigned"),
+        ("cancelled", "Cancelled"),
+    ]
+
+    id = models.AutoField(primary_key=True)
+    member = models.ForeignKey(
+        "Profile",
+        on_delete=models.CASCADE,
+        related_name="shelf_requests",
+        help_text="Member requesting a shelf",
+    )
+    quantity = models.IntegerField(default=1, help_text="Number of shelves requested")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    requested_at = models.DateTimeField(auto_now_add=True)
+    assigned_at = models.DateTimeField(null=True, blank=True)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    notes = models.TextField(blank=True, help_text="Admin notes")
+
+    class Meta:
+        verbose_name = "Shelf Request"
+        verbose_name_plural = "Shelf Requests"
+        ordering = ["requested_at"]
+
+    def __str__(self):
+        return f"{self.member.get_full_name()} - {self.quantity} shelf(s) - {self.get_status_display()}"
+
+    def get_object(self):
+        return {
+            "id": self.id,
+            "member": {
+                "id": self.member.id,
+                "name": self.member.get_full_name(),
+                "email": self.member.user.email,
+            },
+            "quantity": self.quantity,
+            "status": self.status,
+            "status_display": self.get_status_display(),
+            "requested_at": self.requested_at.isoformat(),
+            "assigned_at": self.assigned_at.isoformat() if self.assigned_at else None,
+            "cancelled_at": (
+                self.cancelled_at.isoformat() if self.cancelled_at else None
+            ),
+            "notes": self.notes,
+        }
+
+
+class MemberShelfAddon(ExportModelOperationsMixin("member_shelf_addon"), models.Model):
+    """
+    Tracks the shelf rental addon for a member.
+    Similar to BillingGroupMemberAddon, this locks in the pricing when assigned.
+    """
+
+    id = models.AutoField(primary_key=True)
+    member = models.ForeignKey(
+        "Profile",
+        on_delete=models.CASCADE,
+        related_name="shelf_addons",
+        help_text="Member renting the shelf",
+    )
+    shelf = models.OneToOneField(
+        Shelf,
+        on_delete=models.CASCADE,
+        related_name="addon",
+        help_text="The shelf being rented",
+    )
+    addon = models.ForeignKey(
+        "api_admin_tools.SubscriptionAddon",
+        on_delete=models.CASCADE,
+        related_name="shelf_rentals",
+        help_text="The subscription addon for shelf rental",
+    )
+    locked_cost = models.IntegerField(
+        help_text="Cost in cents when this shelf was assigned"
+    )
+    locked_currency = models.CharField(max_length=3, default="aud")
+    locked_interval = models.CharField(max_length=10)
+    locked_interval_count = models.IntegerField(default=1)
+    date_locked = models.DateTimeField(auto_now_add=True)
+
+    # Stripe integration fields
+    stripe_subscription_item_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Stripe subscription item ID for this shelf rental",
+    )
+    stripe_price_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Stripe price ID created for this member's locked pricing",
+    )
+
+    class Meta:
+        verbose_name = "Member Shelf Add-on"
+        verbose_name_plural = "Member Shelf Add-ons"
+
+    def __str__(self):
+        return f"{self.member.get_full_name()} - Shelf {self.shelf.number}"
+
+    def get_cost_display(self):
+        return f"${self.locked_cost/100:.2f}"
+
+    def get_locked_pricing_object(self):
+        return {
+            "cost": self.locked_cost,
+            "cost_display": self.get_cost_display(),
+            "currency": self.locked_currency,
+            "interval": self.locked_interval,
+            "interval_count": self.locked_interval_count,
+            "date_locked": self.date_locked.isoformat(),
+            "shelf_number": self.shelf.number,
+        }

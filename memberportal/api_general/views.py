@@ -862,6 +862,7 @@ class VerifyEmail(APIView):
                         # Add user to billing group
                         profile.billing_group = billing_group
                         profile.subscription_status = "group_active"
+                        profile.state = "active"
 
                         # Get the billing group addon using configured ID
                         try:

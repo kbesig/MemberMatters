@@ -97,12 +97,6 @@
                         row.interval_count > 1 ? 's' : ''
                       }`,
                   },
-                  {
-                    name: 'stripe_synced',
-                    label: 'Stripe Synced',
-                    field: 'stripe_synced',
-                    sortable: true,
-                  },
                 ]"
                 row-key="id"
                 :filter="filter"
@@ -144,17 +138,6 @@
                       dense
                     >
                       {{ props.value ? 'Yes' : 'No' }}
-                    </q-chip>
-                  </q-td>
-                </template>
-                <template v-slot:body-cell-stripe_synced="props">
-                  <q-td :props="props">
-                    <q-chip
-                      :color="props.value ? 'positive' : 'warning'"
-                      text-color="white"
-                      dense
-                    >
-                      {{ props.value ? 'Synced' : 'Not Synced' }}
                     </q-chip>
                   </q-td>
                 </template>

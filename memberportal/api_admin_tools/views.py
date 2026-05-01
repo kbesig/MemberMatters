@@ -2024,7 +2024,8 @@ class ManageAddons(APIView):
                 )
 
         try:
-            addon = SubscriptionAddon.objects.create(
+            # Build addon in memory first (no DB save yet)
+            addon = SubscriptionAddon(
                 name=data["name"],
                 description=data.get("description", ""),
                 addon_type=data["addon_type"],
@@ -2036,6 +2037,17 @@ class ManageAddons(APIView):
                 min_quantity=data.get("min_quantity", 1),
                 max_quantity=data.get("max_quantity", 10),
             )
+
+            # Create Stripe product and price before committing to DB
+            success, message = addon.create_stripe_product_and_price()
+            if not success:
+                return Response(
+                    {"success": False, "message": f"Failed to create Stripe objects: {message}"},
+                    status=status.HTTP_502_BAD_GATEWAY,
+                )
+
+            # Stripe succeeded — persist to DB (stripe_product_id / stripe_price_id already set)
+            addon.save()
 
             request.user.log_event(
                 f"Created addon '{addon.name}'",
@@ -2067,7 +2079,15 @@ class ManageAddons(APIView):
 
         data = request.data
 
-        # Update fields
+        # Track which fields changed for targeted Stripe updates
+        old_cost = addon.cost
+        old_currency = addon.currency
+        old_interval = addon.interval
+        old_interval_count = addon.interval_count
+        old_name = addon.name
+        old_description = addon.description
+
+        # Update fields in memory
         addon.name = data.get("name", addon.name)
         addon.description = data.get("description", addon.description)
         addon.visible = data.get("visible", addon.visible)
@@ -2077,6 +2097,30 @@ class ManageAddons(APIView):
         addon.interval = data.get("interval", addon.interval)
         addon.min_quantity = data.get("min_quantity", addon.min_quantity)
         addon.max_quantity = data.get("max_quantity", addon.max_quantity)
+
+        pricing_changed = (
+            addon.cost != old_cost
+            or addon.currency != old_currency
+            or addon.interval != old_interval
+            or addon.interval_count != old_interval_count
+        )
+        identity_changed = addon.name != old_name or addon.description != old_description
+
+        # Sync to Stripe before saving to DB
+        if pricing_changed:
+            success, message = addon.update_stripe_price()
+            if not success:
+                return Response(
+                    {"success": False, "message": f"Failed to update Stripe price: {message}"},
+                    status=status.HTTP_502_BAD_GATEWAY,
+                )
+        elif identity_changed and addon.stripe_product_id:
+            success, message = addon.update_stripe_product()
+            if not success:
+                return Response(
+                    {"success": False, "message": f"Failed to update Stripe product: {message}"},
+                    status=status.HTTP_502_BAD_GATEWAY,
+                )
 
         addon.save()
 

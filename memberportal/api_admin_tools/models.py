@@ -110,10 +110,6 @@ class SubscriptionAddon(ExportModelOperationsMixin("subscription-addon"), models
     max_quantity = models.IntegerField("Maximum quantity allowed", default=10)
     min_quantity = models.IntegerField("Minimum quantity required", default=1)
 
-    # Stripe sync status
-    stripe_synced = models.BooleanField("Synced with Stripe", default=False)
-    last_stripe_sync = models.DateTimeField("Last Stripe Sync", null=True, blank=True)
-
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -135,7 +131,6 @@ class SubscriptionAddon(ExportModelOperationsMixin("subscription-addon"), models
             "interval": self.interval,
             "max_quantity": self.max_quantity,
             "min_quantity": self.min_quantity,
-            "stripe_synced": self.stripe_synced,
         }
 
     def create_stripe_product_and_price(self):
@@ -182,10 +177,6 @@ class SubscriptionAddon(ExportModelOperationsMixin("subscription-addon"), models
 
                 self.stripe_price_id = price.id
 
-            self.stripe_synced = True
-            self.last_stripe_sync = timezone.now()
-            self.save()
-
             return True, "Successfully created Stripe product and price"
 
         except stripe.error.StripeError as e:
@@ -197,7 +188,6 @@ class SubscriptionAddon(ExportModelOperationsMixin("subscription-addon"), models
         """Update existing Stripe product (name, description, metadata)"""
         import stripe
         from constance import config
-        from django.utils import timezone
 
         if not config.ENABLE_STRIPE:
             return False, "Stripe is not enabled"
@@ -216,10 +206,6 @@ class SubscriptionAddon(ExportModelOperationsMixin("subscription-addon"), models
                 metadata={"addon_type": self.addon_type, "django_id": str(self.id)},
             )
 
-            self.stripe_synced = True
-            self.last_stripe_sync = timezone.now()
-            self.save()
-
             return True, "Successfully updated Stripe product"
 
         except stripe.error.StripeError as e:
@@ -231,7 +217,6 @@ class SubscriptionAddon(ExportModelOperationsMixin("subscription-addon"), models
         """Update existing Stripe price (creates new price if needed)"""
         import stripe
         from constance import config
-        from django.utils import timezone
 
         if not config.ENABLE_STRIPE:
             return False, "Stripe is not enabled"
@@ -261,10 +246,6 @@ class SubscriptionAddon(ExportModelOperationsMixin("subscription-addon"), models
                     pass  # Price might not exist
 
             self.stripe_price_id = price.id
-            self.stripe_synced = True
-            self.last_stripe_sync = timezone.now()
-            self.save()
-
             return True, "Successfully updated Stripe price"
 
         except stripe.error.StripeError as e:

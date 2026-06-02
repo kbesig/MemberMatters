@@ -4,8 +4,28 @@ export const SubscriptionStateSchema = z.enum([
   'inactive',
   'active',
   'cancelling',
+  'group_active',
+  'group_inactive',
 ]);
 export type SubscriptionState = z.infer<typeof SubscriptionStateSchema>;
+
+export const SubscriptionAddonSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  description: z.string(),
+  addon_type: z.string(),
+  addon_type_display: z.string(),
+  visible: z.boolean(),
+  currency: z.string(),
+  cost: z.number(),
+  cost_display: z.string(),
+  interval_count: z.number(),
+  interval: z.string(),
+  max_quantity: z.number(),
+  min_quantity: z.number(),
+  stripe_synced: z.boolean(),
+});
+export type SubscriptionAddon = z.infer<typeof SubscriptionAddonSchema>;
 
 export const MemberPlanSchema = z.object({
   id: z.number(),

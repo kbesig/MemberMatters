@@ -391,6 +391,26 @@ CONSTANCE_CONFIG = {
         365,
         "The maximum number of days to show on the stats page.",
     ),
+    # Billing Groups
+    "CURRENT_ADDITIONAL_MEMBER_ADDON": (
+        "",
+        "The ID of the current additional member addon for billing group pricing locks. Leave empty if none configured.",
+    ),
+    # Shelf Rental
+    "CURRENT_SHELF_RENTAL_ADDON": (
+        "",
+        "The ID of the current shelf rental addon for shelf rental pricing. Leave empty if none configured.",
+    ),
+    "SHELF_RENTAL_ASSIGNMENT_EMAIL_SUBJECT": (
+        "Shelf #{shelf_number} Assigned - Available {available_date}",
+        "Subject line for shelf assignment emails. Placeholders: {shelf_number}, {available_date}.",
+    ),
+    "SHELF_RENTAL_ASSIGNMENT_EMAIL_BODY": (
+        "Congratulations! You have been assigned Shelf #{shelf_number}.~br~~br~"
+        "Your shelf will be available starting on {available_date}.~br~~br~"
+        "Please note the shelf number for your records.",
+        "Body for shelf assignment emails. Placeholders: {shelf_number}, {available_date}, {member_name}.",
+    ),
 }
 
 CONSTANCE_CONFIG_FIELDSETS = OrderedDict(
@@ -586,6 +606,18 @@ CONSTANCE_CONFIG_FIELDSETS = OrderedDict(
                 "SLACK_INTERLOCK_WEBHOOK",
                 "SLACK_MEMBERBUCKS_PURCHASE_WEBHOOK",
                 "SLACK_REPORT_ISSUE_WEBHOOK",
+            ),
+        ),
+        (
+            "Billing Groups",
+            ("CURRENT_ADDITIONAL_MEMBER_ADDON",),
+        ),
+        (
+            "Shelf Rental",
+            (
+                "CURRENT_SHELF_RENTAL_ADDON",
+                "SHELF_RENTAL_ASSIGNMENT_EMAIL_SUBJECT",
+                "SHELF_RENTAL_ASSIGNMENT_EMAIL_BODY",
             ),
         ),
     ]

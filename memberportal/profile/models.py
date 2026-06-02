@@ -298,6 +298,125 @@ class User(ExportModelOperationsMixin("user"), AbstractBaseUser, PermissionsMixi
 
         return True
 
+    billing_group_invite = models.IntegerField(default=0)
+    billing_group_member = models.IntegerField(default=0)
+
+
+class BillingGroup(ExportModelOperationsMixin("billing-group"), models.Model):
+    """A billing group where one primary member pays for additional members via addon charges."""
+
+    id = models.AutoField(primary_key=True)
+    name = models.CharField(max_length=255)
+    primary_member = models.OneToOneField(
+        "Profile",
+        on_delete=models.SET_NULL,
+        related_name="billing_group_primary_member",
+        null=True,
+        blank=True,
+    )
+
+    def __str__(self):
+        return f"{self.name} (primary: {self.primary_member})"
+
+    def get_members(self):
+        return self.members.all()
+
+    def get_primary_member(self):
+        return self.primary_member
+
+    def get_head(self):
+        return self.get_primary_member()
+
+    def get_invites(self):
+        return self.invitations.all()
+
+    def get_object(self):
+        members = []
+        for member in self.get_members():
+            members.append(
+                {
+                    "id": member.user.id,
+                    "name": member.get_full_name(),
+                    "email": member.user.email,
+                    "isPrimary": member == self.primary_member,
+                }
+            )
+        primary = self.primary_member
+        return {
+            "id": self.id,
+            "name": self.name,
+            "primaryMember": (
+                {
+                    "id": primary.user.id,
+                    "name": primary.get_full_name(),
+                    "email": primary.user.email,
+                }
+                if primary
+                else None
+            ),
+            "members": members,
+        }
+
+
+class BillingGroupInvite(
+    ExportModelOperationsMixin("billing-group-invite"), models.Model
+):
+    """Tracks pending invitations for non-registered users to join a billing group via email."""
+
+    id = models.AutoField(primary_key=True)
+    email = models.EmailField(max_length=255, db_index=True)
+    billing_group = models.ForeignKey(
+        BillingGroup, on_delete=models.CASCADE, related_name="invitations"
+    )
+    invited_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="sent_billing_group_invitations",
+    )
+    invitation_token = models.UUIDField(
+        default=uuid.uuid4, unique=True, db_index=True, editable=False
+    )
+    created_date = models.DateTimeField(auto_now_add=True)
+    expires_date = models.DateTimeField()
+    accepted = models.BooleanField(default=False)
+    accepted_date = models.DateTimeField(null=True, blank=True)
+    invalidated = models.BooleanField(default=False)
+    invalidated_date = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["email", "billing_group"]),
+            models.Index(fields=["expires_date"]),
+        ]
+        ordering = ["-created_date"]
+
+    def __str__(self):
+        return f"Invite for {self.email} to {self.billing_group.name}"
+
+    def save(self, *args, **kwargs):
+        if self.email:
+            self.email = self.email.lower()
+        if not self.expires_date:
+            self.expires_date = timezone.now() + timedelta(days=7)
+        super().save(*args, **kwargs)
+
+    def is_expired(self):
+        return timezone.now() > self.expires_date
+
+    def is_valid(self):
+        return not self.accepted and not self.invalidated and not self.is_expired()
+
+    def accept(self):
+        self.accepted = True
+        self.accepted_date = timezone.now()
+        self.save()
+
+    def invalidate(self):
+        self.invalidated = True
+        self.invalidated_date = timezone.now()
+        self.save()
+
 
 class Profile(ExportModelOperationsMixin("profile"), models.Model):
     STATES = (
@@ -311,6 +430,8 @@ class Profile(ExportModelOperationsMixin("profile"), models.Model):
         ("inactive", "Inactive"),
         ("active", "Active"),
         ("cancelling", "Cancelling"),
+        ("group_active", "Group Member (Active)"),
+        ("group_inactive", "Group Member (Inactive)"),
     )
 
     class Meta:
@@ -384,14 +505,65 @@ class Profile(ExportModelOperationsMixin("profile"), models.Model):
         max_length=100, blank=True, null=True, default=""
     )
     subscription_status = models.CharField(
-        max_length=10, default="inactive", choices=SUBSCRIPTION_STATES
+        max_length=20, default="inactive", choices=SUBSCRIPTION_STATES
     )
     subscription_first_created = models.DateTimeField(
         default=None, blank=True, null=True, editable=False
     )
+    billing_group = models.ForeignKey(
+        "BillingGroup",
+        on_delete=models.SET_NULL,
+        related_name="members",
+        null=True,
+        blank=True,
+    )
+    billing_group_invite = models.ForeignKey(
+        "BillingGroup",
+        on_delete=models.SET_NULL,
+        related_name="members_invites",
+        null=True,
+        blank=True,
+    )
+    pending_billing_group_invite_token = models.UUIDField(
+        null=True,
+        blank=True,
+        help_text="Temporarily stores invitation token during registration",
+    )
 
     def __str__(self):
         return str(self.user)
+
+    def has_active_subscription(self):
+        """Returns True if member has an active subscription (individual or group)."""
+        return self.subscription_status in ["active", "group_active"]
+
+    def has_billing_group(self):
+        """Returns True if member is part of a billing group."""
+        return self.billing_group is not None
+
+    def has_billing_group_invite(self):
+        """Returns True if member has a pending billing group invitation."""
+        return self.billing_group_invite is not None
+
+    def get_effective_subscription_status(self):
+        """Returns effective status considering billing group membership.
+        Primary members keep their own status; secondary members derive from primary.
+        """
+        billing_group = getattr(self, "billing_group", None)
+        if not billing_group or not billing_group.primary_member:
+            return self.subscription_status
+
+        if billing_group.primary_member == self:
+            return self.subscription_status
+
+        # Secondary member: derive from primary
+        primary = billing_group.primary_member
+        if primary.subscription_status == "active":
+            return "group_active"
+        elif primary.subscription_status in ["inactive", "cancelling"]:
+            return "group_inactive"
+
+        return self.subscription_status
 
     def generate_digital_id_token(self):
         self.digital_id_token = uuid.uuid4()
@@ -662,3 +834,131 @@ class Profile(ExportModelOperationsMixin("profile"), models.Model):
             self.created = timezone.now()
         self.modified = timezone.now()
         return super(Profile, self).save(*args, **kwargs)
+
+
+class BillingGroupMemberAddon(
+    ExportModelOperationsMixin("billing-group-member-addon"), models.Model
+):
+    """Locks addon pricing at the time a member joins a billing group."""
+
+    id = models.AutoField(primary_key=True)
+    billing_group = models.ForeignKey(
+        BillingGroup, on_delete=models.CASCADE, related_name="member_addons"
+    )
+    member = models.ForeignKey(
+        Profile, on_delete=models.CASCADE, related_name="billing_group_addons"
+    )
+    addon = models.ForeignKey(
+        "api_admin_tools.SubscriptionAddon",
+        on_delete=models.CASCADE,
+        related_name="billing_group_members",
+    )
+    locked_cost = models.IntegerField()
+    locked_currency = models.CharField(max_length=3, default="aud")
+    locked_interval = models.CharField(max_length=10)
+    locked_interval_count = models.IntegerField(default=1)
+    date_locked = models.DateTimeField(auto_now_add=True)
+    stripe_subscription_item_id = models.CharField(
+        max_length=255, blank=True, null=True
+    )
+    stripe_price_id = models.CharField(max_length=255, blank=True, null=True)
+
+    class Meta:
+        unique_together = [["billing_group", "member", "addon"]]
+
+    def __str__(self):
+        return f"{self.member.get_full_name()} in {self.billing_group.name} — {self.addon.name}"
+
+
+class Shelf(ExportModelOperationsMixin("shelf"), models.Model):
+    """A physical shelf that can be rented by a member."""
+
+    STATUS_CHOICES = [
+        ("available", "Available"),
+        ("occupied", "Occupied"),
+        ("cancelled", "Cancelled - Next Occupant Assigned"),
+    ]
+
+    id = models.AutoField(primary_key=True)
+    number = models.CharField(max_length=50, unique=True)
+    current_member = models.ForeignKey(
+        Profile,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="current_shelves",
+    )
+    next_member = models.ForeignKey(
+        Profile,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="next_shelves",
+    )
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default="available"
+    )
+    start_date = models.DateField(null=True, blank=True)
+    next_available_date = models.DateField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["number"]
+
+    def __str__(self):
+        return f"Shelf {self.number} ({self.status})"
+
+
+class ShelfRequest(ExportModelOperationsMixin("shelf-request"), models.Model):
+    """Member request queue for shelf rentals."""
+
+    STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("assigned", "Assigned"),
+        ("cancelled", "Cancelled"),
+    ]
+
+    id = models.AutoField(primary_key=True)
+    member = models.ForeignKey(
+        Profile, on_delete=models.CASCADE, related_name="shelf_requests"
+    )
+    quantity = models.IntegerField(default=1)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    requested_at = models.DateTimeField(auto_now_add=True)
+    assigned_at = models.DateTimeField(null=True, blank=True)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["requested_at"]
+
+    def __str__(self):
+        return f"Shelf request by {self.member.get_full_name()} ({self.status})"
+
+
+class MemberShelfAddon(ExportModelOperationsMixin("member-shelf-addon"), models.Model):
+    """Locks shelf rental addon pricing at the time of assignment."""
+
+    id = models.AutoField(primary_key=True)
+    member = models.ForeignKey(
+        Profile, on_delete=models.CASCADE, related_name="shelf_addons"
+    )
+    shelf = models.OneToOneField(Shelf, on_delete=models.CASCADE, related_name="addon")
+    addon = models.ForeignKey(
+        "api_admin_tools.SubscriptionAddon",
+        on_delete=models.CASCADE,
+        related_name="shelf_rentals",
+    )
+    locked_cost = models.IntegerField()
+    locked_currency = models.CharField(max_length=3, default="aud")
+    locked_interval = models.CharField(max_length=10)
+    locked_interval_count = models.IntegerField(default=1)
+    date_locked = models.DateTimeField(auto_now_add=True)
+    stripe_subscription_item_id = models.CharField(
+        max_length=255, blank=True, null=True
+    )
+    stripe_price_id = models.CharField(max_length=255, blank=True, null=True)
+
+    def __str__(self):
+        return f"Shelf {self.shelf.number} addon for {self.member.get_full_name()}"

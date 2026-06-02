@@ -43,15 +43,16 @@ export default {
 
     Error404: 'Sidan finns inte',
     Error403: 'Error 403',
+    manageBillingGroups: 'Faktureringsgrupper',
+    manageAddons: 'Prenumerationstillägg',
+    manageShelves: 'Hylluthyrning',
   },
   dashboard: {
     usefulResources: 'Medlemsresurser',
     quickCards: 'Genvägar',
     quickActions: 'Snabbåtkomst',
-    signedIn:
-      'Du är inloggad. Logga ut när du går.',
-    signinSuccess:
-      'Lyckad inloggning. Kom ihåg att logga ut när du går.',
+    signedIn: 'Du är inloggad. Logga ut när du går.',
+    signinSuccess: 'Lyckad inloggning. Kom ihåg att logga ut när du går.',
     signoutError:
       'Det uppstod ett problem vid utloggning. Rapportera felet om det uppstår igen.',
     signinError:
@@ -66,13 +67,11 @@ export default {
     accountAlreadyExists: 'Denna email används redan.',
     screenNameAlreadyExists: 'Detta användarnamn är redan taget.',
     downloadFailed: 'Misslyckades att ladda hem filen.',
-    requestFailed:
-      "Det har uppstått ett fel. Försök igen senare.",
+    requestFailed: 'Det har uppstått ett fel. Försök igen senare.',
     pageNotFound: 'Sidan kan inte hittas',
     noValue: 'Inget värde',
     noData: 'Ingen data hittas',
-    stripeNotConfigured:
-      'Betalplattformen Stripe är inte konfigurerad än.',
+    stripeNotConfigured: 'Betalplattformen Stripe är inte konfigurerad än.',
     postmarkNotConfigured:
       'Mailplattformen Postmark är inte konfigurerad korrekt.',
     stripeNotConfiguredFeature:
@@ -82,12 +81,12 @@ export default {
       'Det uppstod ett problem vid kopering. Försök igen eller exportera som csv.',
     400: ' Det uppstod ett fel med ditt anrop. (Error 400)',
     401: ' Du måste vara inloggad för att komma åt denna sida. (Error 401)',
-    403: " Du saknar rättigheter för att komma åt denna sida. (Error 403)",
+    403: ' Du saknar rättigheter för att komma åt denna sida. (Error 403)',
     '403MemberOnly':
       'Du måste vara ha ett aktivt medkelsmakp för att komma åt denna sida. (Error 403)',
     404: ' Denna sida kan inte hittas. (Error 404)',
     500: ' Det uppstod ett fel på servern. Försök igen senare. (Error 500)',
-    501: " Denna funktion är ännu inte implementerad. (Error 501)",
+    501: ' Denna funktion är ännu inte implementerad. (Error 501)',
   },
   logoutPage: {
     logoutSuccess: 'Utloggning lyckades.',
@@ -95,8 +94,7 @@ export default {
       'Det uppstod ett fel vid utloggning. Uppdatera sidan och försök igen.',
   },
   webcams: {
-    pageDescription:
-      'Våra publika webcam foton uppdateras varje minut.',
+    pageDescription: 'Våra publika webcam foton uppdateras varje minut.',
   },
   about: {
     title: 'Om MemberMatters',
@@ -184,7 +182,7 @@ export default {
     invalidEmail: 'Ange en giltig email.',
     invalidPassword: 'Ange ett giltigt lösenord.',
     invalidPhone: 'Ange ett giltigt telefonnummer.',
-    passwordNotMatch: "Lösenorden matchar inte.",
+    passwordNotMatch: 'Lösenorden matchar inte.',
     cannotBeEmpty: 'Detta fält kan inte vara tomt.',
     futureDate: 'Datum måste vara idag eller i framtiden.',
     tooMany: 'Max är {number}.',
@@ -211,7 +209,8 @@ export default {
     defaultAccess: 'Medlemar har åtkomst som default',
     maintenanceLockout: 'Underhållslåsning är påslagen',
     playTheme: 'Spela tema på swipe',
-    exemptSignin: 'Undantag från kravet på inloggning på webbplatsen (om aktiverad)',
+    exemptSignin:
+      'Undantag från kravet på inloggning på webbplatsen (om aktiverad)',
     hiddenToMembers: 'Dold från medlemmar på deras åtkomst-sida',
     user: 'Användare',
     totalSwipes: 'Total Swipes',
@@ -237,8 +236,7 @@ export default {
   form: {
     saved: 'Sparad',
     error: 'Fel vid sparning',
-    pageDescription:
-      'Redigera fälten nedan och de kommer sparas automatiskt.',
+    pageDescription: 'Redigera fälten nedan och de kommer sparas automatiskt.',
     noResults: 'Inga resultat',
     allFieldsRequired: 'Alla fält markerade med * är obligatoriska.',
     featured: 'Utvalda?',
@@ -295,9 +293,10 @@ export default {
     pageDescription: 'Fyll i formuläret nedan för att skapa ett nytt möte.',
     editDescription: 'Fyll i formuläret nedan för att uppdatera ett möte.',
     newMeeting: 'Nytt möte',
-    updatePastMeeting: "Du kan tyvärr inte uppdatera detta fält för gamla möten.",
+    updatePastMeeting:
+      'Du kan tyvärr inte uppdatera detta fält för gamla möten.',
     noUpdateMeetingType:
-      "Du kan tyvärr inte uppdatera detta fält för existerande möten.",
+      'Du kan tyvärr inte uppdatera detta fält för existerande möten.',
     meeting: 'Möte',
     success: 'Mötet skapades.',
     editSuccess: 'Mötet uppdaterades.',
@@ -318,8 +317,8 @@ export default {
 
     meeting: 'Möte',
     yourCity: 'Din stad',
-    proxyName: "Ombudets namn",
-    proxyCity: "Ombudets stad",
+    proxyName: 'Ombudets namn',
+    proxyCity: 'Ombudets stad',
 
     newProxy: 'Nytt ombud',
     editTitle: 'Redigera ombud',
@@ -337,15 +336,14 @@ export default {
       'Klicka på en av knapparna för att lägga till pengar på ditt konto. Detta kommer ' +
       'omedelbart belasta ditt sparade betal-kort som slutar på {savedCard}.',
     noSavedBilling:
-      "Du har inga giltiga betalmetoder. Lägg till en ny betalmetod " +
+      'Du har inga giltiga betalmetoder. Lägg till en ny betalmetod ' +
       'genom att klicka på knappen nedan.',
     manageBilling: 'Betalmetoder',
     selectToContinue: 'Bekräfta din betalmetod',
     addCard: 'Lägg till kort',
     addCardDescription:
-      "Lägg till ditt kort nedan. Vi sparar inte info om ditt betalkort förutom de sista 4 siffrorna och datum för utgång. Vår säkra betal betallösning som vi använder sparar informationen åt oss.",
-    addCardError:
-      'Det uppstod ett fel med ditt kort. Försök igen senare.',
+      'Lägg till ditt kort nedan. Vi sparar inte info om ditt betalkort förutom de sista 4 siffrorna och datum för utgång. Vår säkra betal betallösning som vi använder sparar informationen åt oss.',
+    addCardError: 'Det uppstod ett fel med ditt kort. Försök igen senare.',
     saveCard: 'Spara betalkort',
     savedCardTitle: 'Sparade betalkort',
     savedCardDescription: 'Dina sparade betalkort visas här nedan.',
@@ -366,12 +364,12 @@ export default {
   },
   loginRfidCard: {
     swipeCard: 'Dra ditt kort',
-    failed: "Vi kunde tyvärr inte logga in dig. Kontrollera ditt kort.",
+    failed: 'Vi kunde tyvärr inte logga in dig. Kontrollera ditt kort.',
   },
   settings: {
     title: 'Kiosk-inställningar',
     description:
-      "Du har öppnat kiosk-inställningarna. Om detta var ett misstak, vänligen stäng detta " +
+      'Du har öppnat kiosk-inställningarna. Om detta var ett misstak, vänligen stäng detta ' +
       'fönster.',
     rfidScanner: {
       title: 'RFID Scanner',
@@ -449,7 +447,7 @@ export default {
     makeMember: 'Skapa Member',
     makeMemberSuccess: 'Medlem skapad och välkomstmail skickat.',
     makeMemberError: 'Okänt fel när medlem skapades.',
-    makeMemberErrorEmail: "Fel vid utskick av välkomstmail.",
+    makeMemberErrorEmail: 'Fel vid utskick av välkomstmail.',
     makeMemberErrorExists:
       'Personen är redan medlem. För att kolla profil, ändra filtret till "alla" medlemmar.',
     makeMemberSuccessDescription:
@@ -479,6 +477,8 @@ export default {
       active: 'Aktiv',
       inactive: 'Inaktiv',
       cancelling: 'Avbruten',
+      group_active: 'Grupp Aktiv',
+      group_inactive: 'Grupp Inaktiv',
     },
     memberStatusString: {
       noob: 'Ny medlem',
@@ -495,6 +495,13 @@ export default {
     billingPlan: 'Betalplan',
     startDate: 'Startdatum',
     noSubscription: 'Inget abonnemang hittades på denna medlem.',
+    billingGroupMemberCosts: 'Faktureringsgruppsmedlemmars kostnader',
+    billingGroupName: 'Faktureringsgrupp',
+    memberAddons: 'Tillägg',
+    addonName: 'Tillägg',
+    memberName: 'Medlem',
+    cost: 'Kostnad',
+    noAddonCost: 'Ingen tilläggskostnad',
     noMembers: 'Inga medlemmar hittades som matchar din sökning.',
   },
   doors: {
@@ -555,7 +562,7 @@ export default {
     resumeButton: 'Återstarta medlemskap',
     cancelling: 'Ditt medlemskap håller på att avslutas',
     cancellingDescription:
-      "Ditt medlemskap kommer att avslutas på datumet {date}. Om du vill återstarta ditt medlemskap (se ovan), vänligen klicka nedan.",
+      'Ditt medlemskap kommer att avslutas på datumet {date}. Om du vill återstarta ditt medlemskap (se ovan), vänligen klicka nedan.',
     renewalDate: 'Förnyelsedatum',
     signupDate: 'Registreringsdatum',
     subscriptionInfo: 'Abonnemangs-info',
@@ -566,16 +573,15 @@ export default {
   },
   signup: {
     induction: 'Introduktion',
-    requiredSteps:
-      'Du måste färdigställa följande steg för att bli medlem.',
+    requiredSteps: 'Du måste färdigställa följande steg för att bli medlem.',
     completeInduction: 'Gå en introduktion',
     startInduction: 'Starta din introduktion',
     completedInduction: 'Introduktion genomförd',
     registerAccessCard: 'Registrera ditt nyckelkort',
     completeInductionDescription:
-      "Färdgiställ din introduktion genom att klicka på knappen nedan. Behåll denna sida öppen och kom tillbaka när du är klar.",
+      'Färdgiställ din introduktion genom att klicka på knappen nedan. Behåll denna sida öppen och kom tillbaka när du är klar.',
     canvasEmailWarning:
-      "Använd samma email-adress som du hade vid registreringen ({email}) för att dina framsteg ska synkroniseras. Detta är en begränsning i Canvas-plattformen.",
+      'Använd samma email-adress som du hade vid registreringen ({email}) för att dina framsteg ska synkroniseras. Detta är en begränsning i Canvas-plattformen.',
     waitingCompletion: 'Väntar på färdigställande...',
     accessCard: 'Nyckelkort',
     accessCardNumber: 'Nummer Nyckelkort',
@@ -592,13 +598,12 @@ export default {
     continueToDashboard: 'Forsätt till dashboard',
     error: 'Fel vid inskickning av medelmsansökan',
     errorDescription:
-      "Det blev tyvärr ett oväntat fel när du skickade in din anökan. Vänligen kontakta oss via {email} så hjälper vi dig.",
+      'Det blev tyvärr ett oväntat fel när du skickade in din anökan. Vänligen kontakta oss via {email} så hjälper vi dig.',
     errorMessageDescription: 'Vänligen skicka med felmeddelandet nedan:',
     requirementsNotMet: 'Krav som inte uppnåtts:',
     subscriptionFailed:
       'Vi har tyvärr problem med att skapa ditt abonnemang. Kontrollera saldo på ditt betalkort, försök igen eller kontakta oss för hjälp.',
-    existingMemberSubscription:
-      'Du har redan ett aktivt abonnemang på Stripe.',
+    existingMemberSubscription: 'Du har redan ett aktivt abonnemang på Stripe.',
   },
   tiers: {
     disabledFeature:
@@ -654,5 +659,153 @@ export default {
     error:
       'Det uppstod ett problem vid verifiering av din email-adress. Vi har skickat ett nytt mail med en ny länk så vänligen prova igen.',
     success: 'Din epost är verifierad. Du kommer bli inloggad strax.',
+  },
+  billingGroup: {
+    title: 'Faktureringsgrupp',
+    groupName: 'Gruppnamn',
+    createGroup: 'Skapa Faktureringsgrupp',
+    createGroupDescription:
+      'Skapa en faktureringsgrupp för att täcka andra medlemmars avgifter. Du blir den primära (betalande) medlemmen.',
+    createGroupSuccess: 'Faktureringsgrupp skapad.',
+    createGroupFailed: 'Misslyckades att skapa faktureringsgrupp.',
+    deleteGroup: 'Ta bort grupp',
+    deleteGroupConfirm:
+      'Är du säker på att du vill ta bort denna faktureringsgrupp? Alla medlemmar tas bort och deras prenumerationer avslutas.',
+    deleteGroupSuccess: 'Faktureringsgrupp borttagen.',
+    deleteGroupFailed: 'Misslyckades att ta bort faktureringsgrupp.',
+    leaveGroup: 'Lämna grupp',
+    leaveGroupConfirm:
+      'Är du säker på att du vill lämna denna faktureringsgrupp? Din prenumeration blir inaktiv.',
+    leaveGroupSuccess: 'Du har lämnat faktureringsgruppen.',
+    leaveGroupFailed: 'Misslyckades att lämna faktureringsgrupp.',
+    inviteMember: 'Bjud in medlem',
+    inviteMemberEmail: 'Medlems e-post',
+    inviteMemberSent: 'Inbjudan skickad.',
+    inviteMemberFailed: 'Misslyckades att skicka inbjudan.',
+    inviteNonmember: 'Bjud in icke-medlem',
+    inviteNonmemberSent: 'Inbjudningsmail skickat.',
+    inviteNonmemberFailed: 'Misslyckades att skicka inbjudan.',
+    removeMember: 'Ta bort medlem',
+    removeMemberConfirm: 'Ta bort {name} från faktureringsgruppen?',
+    removeMemberSuccess: 'Medlem borttagen.',
+    removeMemberFailed: 'Misslyckades att ta bort medlem.',
+    pendingInviteTitle: 'Inbjudan till faktureringsgrupp',
+    pendingInviteDescription:
+      'Du har blivit inbjuden att gå med i {groupName} av {invitedBy}. Om du accepterar täcks ditt medlemskap av gruppen.',
+    pendingInviteNewMemberDescription:
+      'Du har blivit inbjuden att gå med i en faktureringsgrupp. Slutför eventuella nödvändiga steg nedan och acceptera sedan inbjudan — ditt medlemskap täcks av gruppen.',
+    inviteRevokedTitle: 'Faktureringsgruppens inbjudan är inte längre giltig',
+    inviteRevoked_invalidated: 'Denna inbjudan till faktureringsgruppen har avbrutits av gruppägaren. Du kan fortfarande registrera dig för ett vanligt medlemskap nedan.',
+    inviteRevoked_expired: 'Denna inbjudan till faktureringsgruppen har löpt ut. Du kan fortfarande registrera dig för ett vanligt medlemskap, eller be gruppägaren skicka en ny inbjudan.',
+    inviteRevoked_not_found: 'Denna inbjudan till faktureringsgruppen kunde inte hittas. Du kan fortfarande registrera dig för ett vanligt medlemskap, eller be gruppägaren skicka en ny inbjudan.',
+    inviteRevoked_accepted: 'Denna inbjudan till faktureringsgruppen har redan accepterats.',
+    signupWithoutGroup: 'Registrera dig utan grupp',
+    pendingInviteWithSubscription:
+      'Du har en aktiv prenumeration. Att acceptera denna inbjudan avslutar din individuella prenumeration. Du får en proportionell återbetalning för resterande period.',
+    acceptInvite: 'Acceptera',
+    declineInvite: 'Avböj',
+    acceptSuccess: 'Du har gått med i faktureringsgruppen.',
+    acceptFailed: 'Misslyckades att acceptera inbjudan.',
+    declineSuccess: 'Inbjudan avböjd.',
+    declineFailed: 'Misslyckades att avböja inbjudan.',
+    primaryMember: 'Primär Medlem',
+    members: 'Gruppmedlemmar',
+    isPrimary: 'Primär',
+    noGroup: 'Du är inte i en faktureringsgrupp.',
+    requiresSubscription: 'Du behöver en aktiv prenumeration för att skapa en faktureringsgrupp.',
+    resendInvitation: 'Skicka igen',
+    cancelInvitation: 'Avbryt',
+    resendSuccess: 'Inbjudan skickad igen.',
+    resendFailed: 'Misslyckades att skicka om inbjudan.',
+    cancelInvitationSuccess: 'Inbjudan avbruten.',
+    cancelInvitationFailed: 'Misslyckades att avbryta inbjudan.',
+    pendingInvitations: 'Väntande Inbjudningar',
+    noInvitations: 'Inga väntande inbjudningar.',
+    invitationStatus: 'Status',
+    invitationExpires: 'Upphör',
+    manageGroups: 'Hantera Faktureringsgrupper',
+    noGroups: 'Inga faktureringsgrupper hittades.',
+    memberCount: 'Medlemmar',
+  },
+  addons: {
+    manageAddons: 'Prenumerationstillägg',
+    createAddon: 'Skapa tillägg',
+    editAddon: 'Redigera tillägg',
+    deleteAddon: 'Ta bort tillägg',
+    deleteAddonConfirm: 'Är du säker på att du vill ta bort detta tillägg?',
+    deleteSuccess: 'Tillägg borttaget.',
+    deleteFailed: 'Misslyckades att ta bort tillägg.',
+    createSuccess: 'Tillägg skapat.',
+    createFailed: 'Misslyckades att skapa tillägg.',
+    updateSuccess: 'Tillägg uppdaterat.',
+    updateFailed: 'Misslyckades att uppdatera tillägg.',
+    cost: 'Kostnad',
+    interval: 'Intervall',
+    stripeSynced: 'Synkat med Stripe',
+    notStripeSynced: 'Ej synkat med Stripe',
+    addToSubscription: 'Lägg till prenumeration',
+    removeFromSubscription: 'Ta bort från prenumeration',
+    addSuccess: 'Tillägg tillagt.',
+    addFailed: 'Misslyckades att lägga till tillägg.',
+    removeSuccess: 'Tillägg borttaget.',
+    removeFailed: 'Misslyckades att ta bort tillägg.',
+    activeAddons: 'Aktiva tillägg',
+    availableAddons: 'Tillgängliga tillägg',
+    noActiveAddons: 'Inga aktiva tillägg på din prenumeration.',
+    noAddons: 'Inga tillägg hittades.',
+    perInterval: '{cost} per {count} {interval}',
+    optionalAddons: 'Valfria tillägg',
+    noAddonsAvailable: 'Inga tillägg är för närvarande tillgängliga.',
+    differentInterval: 'Annat faktureringsintervall',
+    mixedIntervalWarning: 'Vissa tillägg har ett annat faktureringsintervall än din plan. Du kommer att få separata fakturor för dessa artiklar.',
+  },
+  shelfRental: {
+    title: 'Hylluthyrning',
+    manageShelves: 'Hantera hyllor',
+    myShelf: 'Min hylla',
+    myShelves: 'Mina hyllor',
+    requestShelf: 'Begär hylla',
+    requestSuccess: 'Hyllbegäran skickad.',
+    requestFailed: 'Misslyckades att skicka hyllbegäran.',
+    cancelRequest: 'Avbryt begäran',
+    cancelRequestSuccess: 'Begäran avbruten.',
+    cancelRequestFailed: 'Misslyckades att avbryta begäran.',
+    pendingRequests: 'Väntande begäranden',
+    noPendingRequests: 'Inga väntande begäranden.',
+    noShelves: 'Du hyr för närvarande inga hyllor.',
+    shelfNumber: 'Hyllnummer',
+    status: 'Status',
+    startDate: 'Startdatum',
+    pricing: 'Prissättning',
+    createShelf: 'Skapa hylla',
+    createShelfSuccess: 'Hylla skapad.',
+    createShelfFailed: 'Misslyckades att skapa hylla.',
+    assignMember: 'Tilldela medlem',
+    assignSuccess: 'Medlem tilldelad hylla.',
+    assignFailed: 'Misslyckades att tilldela medlem.',
+    removeMember: 'Ta bort medlem',
+    removeMemberConfirm: 'Ta bort {name} från hylla {shelf}?',
+    removeMemberSuccess: 'Medlem borttagen från hylla.',
+    removeMemberFailed: 'Misslyckades att ta bort medlem från hylla.',
+    setNextMember: 'Ange nästa hyresgäst',
+    setNextSuccess: 'Nästa hyresgäst angiven.',
+    setNextFailed: 'Misslyckades att ange nästa hyresgäst.',
+    currentMember: 'Nuvarande medlem',
+    nextMember: 'Nästa hyresgäst',
+    noCurrentMember: 'Tillgänglig',
+    noNextMember: 'Ingen',
+    stats: 'Statistik',
+    total: 'Totalt',
+    occupied: 'Upptagna',
+    available: 'Tillgängliga',
+    requestQueue: 'Kö',
+    noRequests: 'Inga väntande begäranden i kön.',
+    quantity: 'Antal',
+    requestedAt: 'Begärt',
+    memberSearch: 'Sök medlem',
+    notConfigured: 'Hylluthyrning är inte tillgängligt för tillfället.',
+    statusAvailable: 'Tillgänglig',
+    statusOccupied: 'Upptagen',
+    statusCancelled: 'Avslutas',
   },
 };

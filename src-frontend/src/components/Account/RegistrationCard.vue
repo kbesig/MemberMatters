@@ -173,11 +173,14 @@ export default defineComponent({
         mobile: null,
         password: null,
         vehicleRegistrationPlate: null,
+      billing_group_invite: null as string | null,
       },
     };
   },
   mounted() {
     if (this.loggedIn) this.$router.push({ name: 'dashboard' });
+    const token = this.$route.query.billing_group_invite;
+    if (token) this.form.billing_group_invite = String(token);
   },
   computed: {
     ...mapGetters('profile', ['loggedIn']),
@@ -211,6 +214,7 @@ export default defineComponent({
           mobile: this.form.mobile,
           password: this.form.password,
           vehicleRegistrationPlate: this.form.vehicleRegistrationPlate,
+          ...(this.form.billing_group_invite ? { billing_group_invite: this.form.billing_group_invite } : {}),
         })
         .then(() => {
           this.failed = false;

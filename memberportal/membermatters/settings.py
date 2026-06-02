@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     "api_meeting",
     "api_admin_tools",
     "api_billing",
+    "api_shelf_rental",
     "api_metrics",
     "corsheaders",
     "rest_framework",

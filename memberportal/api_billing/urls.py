@@ -18,14 +18,19 @@ urlpatterns = [
         name="PaymentPlanSignup",
     ),
     path(
-        "api/billing/myplan/<str:resume>/",
-        views.PaymentPlanResumeCancel.as_view(),
-        name="PaymentPlanResumeCancel",
-    ),
-    path(
         "api/billing/myplan/",
         views.SubscriptionInfo.as_view(),
         name="SubscriptionInfo",
+    ),
+    path(
+        "api/billing/myplan/cost-summary/",
+        views.MembershipPlanCostSummary.as_view(),
+        name="MembershipPlanCostSummary",
+    ),
+    path(
+        "api/billing/myplan/<str:resume>/",
+        views.PaymentPlanResumeCancel.as_view(),
+        name="PaymentPlanResumeCancel",
     ),
     path(
         "api/billing/can-signup/",
@@ -56,5 +61,60 @@ urlpatterns = [
         "api/billing/stripe-webhook/",
         views.StripeWebhook.as_view(),
         name="StripeWebhook",
+    ),
+    path(
+        "api/billing/addons/",
+        views.AddonList.as_view(),
+        name="AddonList",
+    ),
+    path(
+        "api/billing/addons/manage/",
+        views.SubscriptionAddonManagement.as_view(),
+        name="SubscriptionAddonManagement",
+    ),
+    path(
+        "api/billing/billing-group/",
+        views.BillingGroupView.as_view(),
+        name="BillingGroupView",
+    ),
+    path(
+        "api/billing/billing-group/members/",
+        views.BillingGroupMembersView.as_view(),
+        name="BillingGroupMembersView",
+    ),
+    path(
+        "api/billing/billing-group/invite/",
+        views.BillingGroupInviteAccept.as_view(),
+        name="BillingGroupInviteAccept",
+    ),
+    path(
+        "api/billing/billing-group/leave/",
+        views.BillingGroupLeave.as_view(),
+        name="BillingGroupLeave",
+    ),
+    path(
+        "api/billing/billing-group/invite-nonmember/",
+        views.BillingGroupInviteNonMember.as_view(),
+        name="BillingGroupInviteNonMember",
+    ),
+    path(
+        "api/billing/billing-group/invitation/<uuid:token>/",
+        views.GetBillingGroupInvitation.as_view(),
+        name="GetBillingGroupInvitation",
+    ),
+    path(
+        "api/billing/billing-group/invitations/",
+        views.BillingGroupInvitations.as_view(),
+        name="BillingGroupInvitations",
+    ),
+    path(
+        "api/billing/billing-group/invitations/<int:invite_id>/resend/",
+        views.BillingGroupInvitationResend.as_view(),
+        name="BillingGroupInvitationResend",
+    ),
+    path(
+        "api/billing/billing-group/invitations/<int:invite_id>/cancel/",
+        views.BillingGroupInvitationCancel.as_view(),
+        name="BillingGroupInvitationCancel",
     ),
 ]

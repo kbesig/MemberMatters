@@ -41,6 +41,11 @@ urlpatterns = [
         name="MemberBillingInfo",
     ),
     path(
+        "api/admin/members/<int:member_id>/addons/manage/",
+        views.AdminMemberAddonManage.as_view(),
+        name="AdminMemberAddonManage",
+    ),
+    path(
         "api/admin/members/<int:member_id>/logs/",
         views.MemberLogs.as_view(),
         name="MemberLogs",
@@ -97,5 +102,40 @@ urlpatterns = [
         "api/admin/settings/<str:setting_key>/",
         views.ManageSettings.as_view(),
         name="ManageSettings",
+    ),
+    path(
+        "api/admin/addons/",
+        views.AdminAddonList.as_view(),
+        name="AdminAddonList",
+    ),
+    path(
+        "api/admin/addons/current-additional-member/",
+        views.AdminCurrentAdditionalMemberAddon.as_view(),
+        name="AdminCurrentAdditionalMemberAddon",
+    ),
+    path(
+        "api/admin/addons/<int:addon_id>/",
+        views.AdminAddonDetail.as_view(),
+        name="AdminAddonDetail",
+    ),
+    path(
+        "api/admin/billing-groups/",
+        views.AdminBillingGroupList.as_view(),
+        name="AdminBillingGroupList",
+    ),
+    path(
+        "api/admin/billing-groups/<int:group_id>/",
+        views.AdminBillingGroupDetail.as_view(),
+        name="AdminBillingGroupDetail",
+    ),
+    path(
+        "api/admin/billing-groups/<int:group_id>/members/",
+        views.AdminBillingGroupMembers.as_view(),
+        name="AdminBillingGroupMembers",
+    ),
+    path(
+        "api/admin/billing-groups/<int:group_id>/invites/",
+        views.AdminBillingGroupInvites.as_view(),
+        name="AdminBillingGroupInvites",
     ),
 ]

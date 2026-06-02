@@ -362,12 +362,35 @@ class ResetPassword(APIView):
                 return Response({"success": False})
 
 
+def _get_pending_invite_status(profile):
+    """Return the status of a pending billing group invite token on a profile.
+
+    Returns one of: None, 'valid', 'expired', 'invalidated', 'not_found'
+    """
+    if not profile.pending_billing_group_invite_token:
+        return None
+    try:
+        from profile.models import BillingGroupInvite
+
+        invite = BillingGroupInvite.objects.get(
+            invitation_token=profile.pending_billing_group_invite_token
+        )
+        if invite.accepted:
+            return "accepted"
+        if invite.invalidated:
+            return "invalidated"
+        if invite.is_expired():
+            return "expired"
+        return "valid"
+    except Exception:
+        return "not_found"
+
+
 class ProfileDetail(generics.GenericAPIView):
     """
     get: Gets the user profile object.
     put: Updates the user profile object.
     """
-
     def get(self, request):
         p = request.user.profile
         user = request.user
@@ -405,6 +428,8 @@ class ProfileDetail(generics.GenericAPIView):
                 ),
                 "subscriptionState": p.subscription_status,
             },
+            "pendingBillingGroupInvite": bool(p.pending_billing_group_invite_token),
+            "pendingBillingGroupInviteStatus": _get_pending_invite_status(p),
             "permissions": {"staff": user.is_staff},
         }
 
@@ -667,6 +692,18 @@ class Register(APIView):
             phone=body.get("mobile"),
             vehicle_registration_plate=body.get("vehicleRegistrationPlate"),
         )
+
+        # Store billing group invite token if provided during registration
+        billing_group_invite_token = body.get("billing_group_invite")
+        if billing_group_invite_token:
+            try:
+                import uuid as uuid_mod
+
+                profile.pending_billing_group_invite_token = uuid_mod.UUID(
+                    str(billing_group_invite_token)
+                )
+            except (ValueError, AttributeError):
+                pass
 
         profile.save()
 

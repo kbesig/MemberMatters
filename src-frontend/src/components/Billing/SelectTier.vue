@@ -14,6 +14,8 @@
         </template>
         {{ $t('paymentPlans.accountOnlyWarning') }}
       </q-banner>
+
+      <billing-group-invite-banner />
     </div>
 
     <q-stepper
@@ -120,9 +122,60 @@
 
       <q-step
         :name="4"
+        :title="$tc('addons.manageAddons')"
+        :icon="icons.plans"
+        :done="step > 4"
+      >
+        <div class="text-h6 q-py-md">{{ $tc('addons.optionalAddons') }}</div>
+
+        <q-list
+          v-if="availableAddons.length"
+          bordered
+          separator
+          class="q-mb-md"
+          style="max-width: 600px"
+        >
+          <q-item v-for="addon in availableAddons" :key="addon.id">
+            <q-item-section>
+              <q-item-label>{{ addon.name }}</q-item-label>
+              <q-item-label caption v-if="addon.description">{{ addon.description }}</q-item-label>
+              <q-item-label caption>
+                {{ $n(addon.cost / 100, 'currency', siteLocaleCurrency) }} /
+                {{ $tc(`paymentPlans.interval.${addon.interval.toLowerCase()}`, addon.interval_count) }}
+                <span v-if="addon.interval !== selectedPlan.interval" class="text-warning">
+                  &nbsp;— {{ $t('addons.differentInterval') }}
+                </span>
+              </q-item-label>
+            </q-item-section>
+            <q-item-section side>
+              <q-checkbox v-model="selectedAddonIds" :val="addon.id" />
+            </q-item-section>
+          </q-item>
+        </q-list>
+
+        <div v-else-if="!loadingAddons" class="text-grey q-mb-md">
+          {{ $t('addons.noAddonsAvailable') }}
+        </div>
+
+        <div v-if="selectedAddonIds.length && selectedPlan && hasMixedIntervals" class="q-mb-md">
+          <q-banner rounded inline-actions class="bg-warning text-white">
+            <template v-slot:avatar><q-icon name="mdi-alert" /></template>
+            {{ $t('addons.mixedIntervalWarning') }}
+          </q-banner>
+        </div>
+
+        <div class="row justify-start q-mt-md">
+          <q-btn flat @click="backToBilling" :label="$tc('button.back')" />
+          <q-space />
+          <q-btn color="primary" @click="step++" :label="$tc('button.continue')" />
+        </div>
+      </q-step>
+
+      <q-step
+        :name="5"
         :title="$tc('paymentPlans.confirmSelection')"
         :icon="icons.success"
-        :done="step > 4"
+        :done="step > 5"
       >
         <div class="row">
           <div class="row col-xs-12 col-sm-6">
@@ -206,12 +259,13 @@
   </div>
 </template>
 
-<script>
+<script lang="ts">
 import { mapActions, mapGetters } from 'vuex';
 import { defineComponent } from 'vue';
 import TierCard from '@components/Billing/TierCard.vue';
 import PlanCard from '@components/Billing/PlanCard.vue';
 import MemberBucksManageBilling from '@components/MemberBucksManageBilling.vue';
+import BillingGroupInviteBanner from '@components/Billing/BillingGroupInviteBanner.vue';
 import icons from '@icons';
 
 export default defineComponent({
@@ -226,6 +280,17 @@ export default defineComponent({
       loading: false,
       finishSuccess: false,
       cardExists: false,
+      availableAddons: [] as {
+        id: number;
+        name: string;
+        description: string;
+        cost: number;
+        currency: string;
+        interval: string;
+        interval_count: number;
+      }[],
+      selectedAddonIds: [] as number[],
+      loadingAddons: false,
     };
   },
   computed: {
@@ -234,11 +299,18 @@ export default defineComponent({
     icons() {
       return icons;
     },
+    hasMixedIntervals() {
+      if (!this.selectedPlan || !this.selectedAddonIds.length) return false;
+      return this.availableAddons
+        .filter((a) => this.selectedAddonIds.includes(a.id))
+        .some((a) => a.interval !== this.selectedPlan.interval);
+    },
   },
   components: {
     TierCard,
     PlanCard,
     MemberBucksManageBilling,
+    BillingGroupInviteBanner,
   },
   mounted() {
     this.getTiers();
@@ -249,6 +321,17 @@ export default defineComponent({
       this.$axios.get('/api/billing/tiers/').then((response) => {
         this.tiers = response.data;
       });
+    },
+    async fetchAddons() {
+      this.loadingAddons = true;
+      try {
+        const result = await this.$axios.get('/api/billing/addons/');
+        this.availableAddons = Array.isArray(result.data) ? result.data : (result.data.addons || []);
+      } catch {
+        this.availableAddons = [];
+      } finally {
+        this.loadingAddons = false;
+      }
     },
     skipSignup() {
       this.$axios
@@ -274,8 +357,12 @@ export default defineComponent({
     finishSignup() {
       this.disableFinish = true;
       this.loading = true;
+      const payload: { addons?: number[] } = {};
+      if (this.selectedAddonIds.length) {
+        payload.addons = this.selectedAddonIds;
+      }
       this.$axios
-        .post(`/api/billing/plans/${this.selectedPlan.id}/signup/`)
+        .post(`/api/billing/plans/${this.selectedPlan.id}/signup/`, payload)
         .then((response) => {
           if (response.data.success) {
             this.finishSuccess = true;
@@ -317,6 +404,7 @@ export default defineComponent({
     },
     selectedBillingMethodEvent() {
       this.step++;
+      this.fetchAddons();
     },
     backToTiers() {
       this.step = 1;

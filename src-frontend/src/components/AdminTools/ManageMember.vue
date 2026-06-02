@@ -603,7 +603,180 @@
                 </q-item>
               </q-list>
 
-              <div v-else>
+              <!-- Billing Group Members' Costs -->
+              <template v-if="billing?.subscription?.billingGroup">
+                <div class="text-subtitle1 q-mt-sm">
+                  {{ $t('adminTools.billingGroupMemberCosts') }} —
+                  {{ billing.subscription.billingGroup.name }}
+                </div>
+
+                <q-markup-table
+                  bordered
+                  padding
+                  class="rounded-borders desktop-only"
+                >
+                  <thead>
+                    <tr>
+                      <th class="text-left">{{ $t('adminTools.memberName') }}</th>
+                      <th class="text-left">{{ $t('adminTools.addonName') }}</th>
+                      <th class="text-left">{{ $t('adminTools.cost') }}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      v-for="(ma, idx) in billing.subscription.billingGroup.memberAddons"
+                      :key="idx"
+                    >
+                      <td class="text-left">{{ ma.memberName }}</td>
+                      <td class="text-left">{{ ma.addonName ?? '—' }}</td>
+                      <td class="text-left">
+                        <span v-if="ma.cost != null">
+                          {{
+                            $t('paymentPlans.intervalDescription', {
+                              currency: ma.currency.toUpperCase(),
+                              amount: $n(ma.cost / 100, 'currency', siteLocaleCurrency),
+                              interval: $tc(
+                                `paymentPlans.interval.${ma.interval.toLowerCase()}`,
+                                ma.intervalCount
+                              ),
+                            })
+                          }}
+                        </span>
+                        <span v-else>—</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </q-markup-table>
+
+                <q-list
+                  bordered
+                  padding
+                  class="rounded-borders desktop-hide"
+                  style="max-width: 350px"
+                >
+                  <q-item
+                    v-for="(ma, idx) in billing.subscription.billingGroup.memberAddons"
+                    :key="idx"
+                  >
+                    <q-item-section>
+                      <q-item-label lines="1">
+                        {{ ma.memberName }}
+                        <span v-if="ma.addonName"> — {{ ma.addonName }}</span>
+                      </q-item-label>
+                      <q-item-label caption>
+                        <span v-if="ma.cost != null">
+                          {{
+                            $t('paymentPlans.intervalDescription', {
+                              currency: ma.currency.toUpperCase(),
+                              amount: $n(ma.cost / 100, 'currency', siteLocaleCurrency),
+                              interval: $tc(
+                                `paymentPlans.interval.${ma.interval.toLowerCase()}`,
+                                ma.intervalCount
+                              ),
+                            })
+                          }}
+                        </span>
+                        <span v-else>{{ $t('adminTools.noAddonCost') }}</span>
+                      </q-item-label>
+                    </q-item-section>
+                  </q-item>
+                </q-list>
+              </template>
+
+              <!-- Standalone Add-ons -->
+              <template v-if="billing?.subscription?.addons?.length">
+                <div class="text-subtitle1 q-mt-sm">
+                  {{ $t('adminTools.memberAddons') }}
+                </div>
+
+                <q-markup-table
+                  bordered
+                  padding
+                  class="rounded-borders desktop-only"
+                >
+                  <thead>
+                    <tr>
+                      <th class="text-left">{{ $t('adminTools.addonName') }}</th>
+                      <th class="text-left">{{ $t('adminTools.cost') }}</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      v-for="(addon, idx) in billing.subscription.addons"
+                      :key="idx"
+                    >
+                      <td class="text-left">{{ addon.name }}</td>
+                      <td class="text-left">
+                        {{
+                          $t('paymentPlans.intervalDescription', {
+                            currency: addon.currency.toUpperCase(),
+                            amount: $n(addon.cost / 100, 'currency', siteLocaleCurrency),
+                            interval: $tc(
+                              `paymentPlans.interval.${addon.interval.toLowerCase()}`,
+                              addon.intervalCount
+                            ),
+                          })
+                        }}
+                      </td>
+                      <td class="text-right">
+                        <q-btn
+                          flat
+                          round
+                          dense
+                          icon="mdi-delete"
+                          color="negative"
+                          :loading="loadingAddonId === addon.id"
+                          :title="$t('adminTools.removeAddon')"
+                          @click="removeAddon(addon)"
+                        />
+                      </td>
+                    </tr>
+                  </tbody>
+                </q-markup-table>
+
+                <q-list
+                  bordered
+                  padding
+                  class="rounded-borders desktop-hide"
+                  style="max-width: 350px"
+                >
+                  <q-item
+                    v-for="(addon, idx) in billing.subscription.addons"
+                    :key="idx"
+                  >
+                    <q-item-section>
+                      <q-item-label lines="1">{{ addon.name }}</q-item-label>
+                      <q-item-label caption>
+                        {{
+                          $t('paymentPlans.intervalDescription', {
+                            currency: addon.currency.toUpperCase(),
+                            amount: $n(addon.cost / 100, 'currency', siteLocaleCurrency),
+                            interval: $tc(
+                              `paymentPlans.interval.${addon.interval.toLowerCase()}`,
+                              addon.intervalCount
+                            ),
+                          })
+                        }}
+                      </q-item-label>
+                    </q-item-section>
+                    <q-item-section side>
+                      <q-btn
+                        flat
+                        round
+                        dense
+                        icon="mdi-delete"
+                        color="negative"
+                        :loading="loadingAddonId === addon.id"
+                        :title="$t('adminTools.removeAddon')"
+                        @click="removeAddon(addon)"
+                      />
+                    </q-item-section>
+                  </q-item>
+                </q-list>
+              </template>
+
+              <div v-if="!billing?.subscription">
                 {{ $t(`adminTools.noSubscription`) }}
               </div>
             </div>
@@ -1438,6 +1611,7 @@ export default defineComponent({
       smsSendLoading: false,
       smsModalIsOpen: false,
       smsBody: '',
+      loadingAddonId: null as string | null,
     };
   },
   beforeMount() {
@@ -1505,6 +1679,39 @@ export default defineComponent({
         })
         .finally(() => {
           this.welcomeLoading = false;
+        });
+    },
+    removeAddon(addon: { id: string; name: string }) {
+      this.$q
+        .dialog({
+          title: this.$t('adminTools.removeAddon'),
+          message: this.$t('adminTools.removeAddonConfirm'),
+          cancel: true,
+          persistent: true,
+        })
+        .onOk(() => {
+          this.loadingAddonId = addon.id;
+          this.$axios
+            .post(`/api/admin/members/${this.member.id}/addons/manage/`, {
+              subscription_item_id: addon.id,
+              action: 'remove',
+            })
+            .then(() => {
+              this.$q.notify({
+                color: 'positive',
+                message: this.$t('addons.removeSuccess'),
+              });
+              this.getMemberBilling();
+            })
+            .catch(() => {
+              this.$q.dialog({
+                title: this.$t('error.error'),
+                message: this.$t('error.requestFailed'),
+              });
+            })
+            .finally(() => {
+              this.loadingAddonId = null;
+            });
         });
     },
     getMemberBilling() {

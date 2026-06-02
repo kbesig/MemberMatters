@@ -1,6 +1,8 @@
 import json
-
+import logging
 import stripe
+
+logger = logging.getLogger("billing")
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from constance import config
@@ -792,19 +794,117 @@ class MemberBillingInfo(StripeAPIView):
             if member.profile.stripe_subscription_id:
                 s = stripe.Subscription.retrieve(
                     member.profile.stripe_subscription_id,
+                    expand=["items.data.price"],
                 )
 
             # if we got subscription details
             if s:
+                from profile.models import BillingGroupMemberAddon
+                from api_admin_tools.models import SubscriptionAddon as SubscriptionAddonModel
+
+                # If this member is a billing group primary, collect member addon data
+                billing_group_data = None
+                billing_group_price_ids = set()
+                billing_group_item_ids = set()
+                billing_group = getattr(
+                    member.profile, "billing_group_primary_member", None
+                )
+                if billing_group:
+                    addon_records = list(
+                        BillingGroupMemberAddon.objects.filter(
+                            billing_group=billing_group
+                        ).select_related("member", "addon")
+                    )
+                    for ma in addon_records:
+                        if ma.stripe_price_id:
+                            billing_group_price_ids.add(ma.stripe_price_id)
+                        if ma.stripe_subscription_item_id:
+                            billing_group_item_ids.add(ma.stripe_subscription_item_id)
+
+                    # Build per-member rows from actual group members
+                    member_rows = []
+                    for profile in billing_group.members.all():
+                        member_addons = [r for r in addon_records if r.member_id == profile.id]
+                        if member_addons:
+                            for ma in member_addons:
+                                member_rows.append({
+                                    "memberName": profile.get_full_name(),
+                                    "memberEmail": profile.user.email,
+                                    "addonName": ma.addon.name,
+                                    "cost": ma.locked_cost,
+                                    "currency": ma.locked_currency,
+                                    "interval": ma.locked_interval,
+                                    "intervalCount": ma.locked_interval_count,
+                                })
+                        else:
+                            member_rows.append({
+                                "memberName": profile.get_full_name(),
+                                "memberEmail": profile.user.email,
+                                "addonName": None,
+                                "cost": None,
+                                "currency": None,
+                                "interval": None,
+                                "intervalCount": None,
+                            })
+
+                    billing_group_data = {
+                        "id": billing_group.id,
+                        "name": billing_group.name,
+                        "memberAddons": member_rows,
+                    }
+
+                # Build a name lookup from local SubscriptionAddon records (price_id → name)
+                addon_name_lookup = {
+                    a.stripe_price_id: a.name
+                    for a in SubscriptionAddonModel.objects.exclude(stripe_price_id=None)
+                }
+
+                # Standalone addons: Stripe items that are not the base plan or billing group items
+                base_plan_price_id = current_plan.stripe_id
+                addon_items = []
+                for item in s.get("items", {}).get("data", []):
+                    price_id = item.get("price", {}).get("id")
+                    item_id = item.get("id")
+                    if price_id == base_plan_price_id:
+                        continue
+                    if price_id in billing_group_price_ids:
+                        continue
+                    if item_id in billing_group_item_ids:
+                        continue
+                    recurring = item.get("price", {}).get("recurring") or {}
+                    addon_items.append(
+                        {
+                            "id": item_id,
+                            "name": (
+                                item.get("price", {}).get("nickname")
+                                or addon_name_lookup.get(price_id)
+                                or item.get("price", {}).get("product")
+                                or price_id
+                            ),
+                            "cost": item.get("price", {}).get("unit_amount"),
+                            "currency": item.get("price", {}).get("currency"),
+                            "interval": recurring.get("interval"),
+                            "intervalCount": recurring.get("interval_count"),
+                            "quantity": item.get("quantity"),
+                        }
+                    )
+
+                # Stripe API 2024-09-30+ moved period fields to subscription items
+                first_item = s.get("items", {}).get("data", [None])[0] or {}
+                current_period_end = s.get("current_period_end") or first_item.get("current_period_end")
+                billing_cycle_anchor = s.get("billing_cycle_anchor") or first_item.get("billing_cycle_anchor")
+
                 billing_info["subscription"] = {
                     "status": member.profile.subscription_status,
-                    "billingCycleAnchor": s.billing_cycle_anchor,
-                    "currentPeriodEnd": s.current_period_end,
-                    "cancelAt": s.cancel_at,
-                    "cancelAtPeriodEnd": s.cancel_at_period_end,
-                    "startDate": s.start_date,
+                    "billingCycleAnchor": billing_cycle_anchor,
+                    "currentPeriodEnd": current_period_end,
+                    "cancelAt": s.get("cancel_at"),
+                    "cancelAtPeriodEnd": s.get("cancel_at_period_end"),
+                    "startDate": s.get("start_date"),
                     "membershipTier": member.profile.membership_plan.member_tier.get_object(),
                     "membershipPlan": member.profile.membership_plan.get_object(),
+                    "addons": addon_items,
+                    "billingGroup": billing_group_data,
                 }
             else:
                 billing_info["subscription"] = None
@@ -826,6 +926,65 @@ class MemberBillingInfo(StripeAPIView):
         }
 
         return Response(billing_info)
+
+
+class AdminMemberAddonManage(StripeAPIView):
+    """
+    post: removes a subscription addon item from a member's active Stripe subscription.
+    """
+
+    permission_classes = (permissions.IsAdminUser,)
+
+    def post(self, request, member_id):
+        subscription_item_id = request.data.get("subscription_item_id")
+        action = request.data.get("action")
+
+        if not subscription_item_id or action != "remove":
+            return Response(
+                {"error": "subscription_item_id and action='remove' are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            member = User.objects.get(id=member_id)
+        except User.DoesNotExist:
+            return Response(
+                {"error": "Member not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        if not member.profile.stripe_subscription_id:
+            return Response(
+                {"error": "Member has no active Stripe subscription."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            subscription = stripe.Subscription.retrieve(
+                member.profile.stripe_subscription_id,
+                expand=["items.data.price"],
+            )
+            item_ids = [item["id"] for item in subscription["items"]["data"]]
+            if subscription_item_id not in item_ids:
+                return Response(
+                    {"error": "Subscription item not found on member's subscription."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            stripe.SubscriptionItem.delete(
+                subscription_item_id,
+                proration_behavior="create_prorations",
+            )
+            member.log_event(
+                f"Admin removed subscription item '{subscription_item_id}' from subscription.",
+                "stripe",
+            )
+            return Response({"success": True, "message": "Add-on removed successfully."})
+
+        except stripe.error.StripeError as e:
+            capture_exception(e)
+            return Response(
+                {"error": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
 
 
 class MemberLogs(APIView):
@@ -940,3 +1099,591 @@ class ManageSettings(APIView):
 
         except ConstanceSetting.DoesNotExist as e:
             return Response(status=status.HTTP_404_NOT_FOUND)
+
+
+class AdminAddonList(StripeAPIView):
+    """
+    get: returns all subscription addons.
+    post: creates a new subscription addon and syncs to Stripe.
+    """
+
+    permission_classes = (permissions.IsAdminUser,)
+
+    def get(self, request):
+        from .models import SubscriptionAddon
+
+        addons = SubscriptionAddon.objects.all()
+        return Response([a.get_object() for a in addons])
+
+    def post(self, request):
+        from .models import SubscriptionAddon
+
+        data = request.data
+        required = ["name", "addon_type", "cost", "interval"]
+        for field in required:
+            if field not in data:
+                return Response(
+                    {"error": f"Missing required field: {field}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        addon = SubscriptionAddon(
+            name=data["name"],
+            description=data.get("description", ""),
+            addon_type=data["addon_type"],
+            visible=data.get("visible", True),
+            currency=data.get("currency", "aud"),
+            cost=data["cost"],
+            interval=data["interval"],
+            interval_count=data.get("interval_count", 1),
+            max_quantity=data.get("max_quantity", 10),
+            min_quantity=data.get("min_quantity", 1),
+        )
+
+        try:
+            addon.save()
+        except Exception as e:
+            capture_exception(e)
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            addon.create_stripe_product_and_price()
+        except stripe.error.StripeError as e:
+            capture_exception(e)
+            logger.warning(f"Stripe sync failed for addon {addon.id}: {e}")
+
+        return Response(addon.get_object(), status=status.HTTP_201_CREATED)
+
+
+class AdminAddonDetail(StripeAPIView):
+    """
+    get: returns a single subscription addon.
+    put: updates an addon. Updates Stripe product/price as needed.
+    delete: deletes an addon and archives Stripe objects.
+    """
+
+    permission_classes = (permissions.IsAdminUser,)
+
+    def get(self, request, addon_id):
+        from .models import SubscriptionAddon
+
+        try:
+            addon = SubscriptionAddon.objects.get(pk=addon_id)
+        except SubscriptionAddon.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        return Response(addon.get_object())
+
+    def put(self, request, addon_id):
+        from .models import SubscriptionAddon
+
+        try:
+            addon = SubscriptionAddon.objects.get(pk=addon_id)
+        except SubscriptionAddon.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        data = request.data
+        price_changed = (
+            data.get("cost", addon.cost) != addon.cost
+            or data.get("interval", addon.interval) != addon.interval
+            or data.get("interval_count", addon.interval_count) != addon.interval_count
+            or data.get("currency", addon.currency) != addon.currency
+        )
+        product_changed = (
+            data.get("name", addon.name) != addon.name
+            or data.get("description", addon.description) != addon.description
+        )
+
+        addon.name = data.get("name", addon.name)
+        addon.description = data.get("description", addon.description)
+        addon.visible = data.get("visible", addon.visible)
+        addon.currency = data.get("currency", addon.currency)
+        addon.cost = data.get("cost", addon.cost)
+        addon.interval = data.get("interval", addon.interval)
+        addon.interval_count = data.get("interval_count", addon.interval_count)
+        addon.max_quantity = data.get("max_quantity", addon.max_quantity)
+        addon.min_quantity = data.get("min_quantity", addon.min_quantity)
+        addon.save()
+
+        try:
+            if price_changed:
+                addon.update_stripe_price()
+            elif product_changed:
+                addon.update_stripe_product()
+        except stripe.error.StripeError as e:
+            capture_exception(e)
+            logger.warning(f"Stripe update failed for addon {addon.id}: {e}")
+
+        return Response(addon.get_object())
+
+    def delete(self, request, addon_id):
+        from .models import SubscriptionAddon
+
+        try:
+            addon = SubscriptionAddon.objects.get(pk=addon_id)
+        except SubscriptionAddon.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            addon.delete_stripe_objects()
+        except stripe.error.StripeError as e:
+            capture_exception(e)
+            logger.warning(f"Stripe archive failed for addon {addon.id}: {e}")
+
+        addon.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class AdminCurrentAdditionalMemberAddon(StripeAPIView):
+    """
+    get: returns the current additional member addon configured in constance.
+    put: sets the CURRENT_ADDITIONAL_MEMBER_ADDON constance config value.
+    """
+
+    permission_classes = (permissions.IsAdminUser,)
+
+    def get(self, request):
+        from .models import SubscriptionAddon
+
+        addon_id = config.CURRENT_ADDITIONAL_MEMBER_ADDON
+        addon_obj = None
+
+        if addon_id:
+            try:
+                addon = SubscriptionAddon.objects.get(pk=int(addon_id))
+                addon_obj = addon.get_object()
+            except (SubscriptionAddon.DoesNotExist, ValueError):
+                pass
+
+        return Response({"addon_id": addon_id, "addon": addon_obj})
+
+    def put(self, request):
+        addon_id = request.data.get("addon_id", "")
+
+        if addon_id:
+            from .models import SubscriptionAddon
+
+            try:
+                SubscriptionAddon.objects.get(pk=int(addon_id))
+            except (SubscriptionAddon.DoesNotExist, ValueError):
+                return Response(
+                    {"error": "Addon not found"}, status=status.HTTP_404_NOT_FOUND
+                )
+
+        try:
+            setting = ConstanceSetting.objects.get(
+                key="CURRENT_ADDITIONAL_MEMBER_ADDON"
+            )
+            setting.value = str(addon_id)
+            setting.save()
+        except ConstanceSetting.DoesNotExist:
+            ConstanceSetting.objects.create(
+                key="CURRENT_ADDITIONAL_MEMBER_ADDON", value=str(addon_id)
+            )
+
+        return Response({"addon_id": str(addon_id)})
+
+
+class AdminBillingGroupList(StripeAPIView):
+    """
+    get: list all billing groups.
+    post: create a billing group with a primary member.
+    """
+
+    permission_classes = (permissions.IsAdminUser,)
+
+    def get(self, request):
+        from profile.models import BillingGroup
+
+        groups = BillingGroup.objects.all()
+        data = []
+        for group in groups:
+            obj = group.get_object()
+            obj["memberCount"] = group.get_members().count()
+            data.append(obj)
+        return Response(data)
+
+    def post(self, request):
+        from profile.models import BillingGroup, Profile
+
+        name = request.data.get("name", "").strip()
+        primary_member_id = request.data.get("primary_member_id")
+
+        if not name or not primary_member_id:
+            return Response(
+                {"error": "name and primary_member_id are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            primary_profile = Profile.objects.get(user__id=primary_member_id)
+        except Profile.DoesNotExist:
+            return Response(
+                {"error": "Member not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        group = BillingGroup.objects.create(name=name, primary_member=primary_profile)
+        primary_profile.billing_group = group
+        primary_profile.save()
+
+        request.user.log_event(
+            f"Admin created billing group '{name}' for {primary_profile.get_full_name()}.",
+            "admin",
+        )
+
+        return Response(group.get_object(), status=status.HTTP_201_CREATED)
+
+
+class AdminBillingGroupDetail(StripeAPIView):
+    """
+    get: get billing group details.
+    put: update billing group name or primary member.
+    delete: delete the billing group and clean up members.
+    """
+
+    import stripe as stripe_module
+
+    permission_classes = (permissions.IsAdminUser,)
+
+    def get(self, request, group_id):
+        from profile.models import (
+            BillingGroup,
+            BillingGroupMemberAddon,
+            BillingGroupInvite,
+        )
+
+        try:
+            group = BillingGroup.objects.get(pk=group_id)
+        except BillingGroup.DoesNotExist:
+            return Response(
+                {"error": "Billing group not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        obj = group.get_object()
+        obj["memberAddons"] = [
+            {
+                "id": ma.id,
+                "member": ma.member.get_full_name(),
+                "addon": ma.addon.name,
+                "lockedCost": ma.locked_cost,
+                "lockedInterval": ma.locked_interval,
+                "stripeSubscriptionItemId": ma.stripe_subscription_item_id,
+            }
+            for ma in BillingGroupMemberAddon.objects.filter(billing_group=group)
+        ]
+        obj["invitations"] = [
+            {
+                "id": inv.id,
+                "email": inv.email,
+                "accepted": inv.accepted,
+                "invalidated": inv.invalidated,
+                "createdDate": inv.created_date,
+                "expiresDate": inv.expires_date,
+            }
+            for inv in BillingGroupInvite.objects.filter(billing_group=group)
+        ]
+        return Response(obj)
+
+    def put(self, request, group_id):
+        from profile.models import BillingGroup, Profile
+
+        try:
+            group = BillingGroup.objects.get(pk=group_id)
+        except BillingGroup.DoesNotExist:
+            return Response(
+                {"error": "Billing group not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        if "name" in request.data:
+            group.name = request.data["name"].strip()
+
+        if "primary_member_id" in request.data:
+            try:
+                new_primary = Profile.objects.get(
+                    user__id=request.data["primary_member_id"]
+                )
+            except Profile.DoesNotExist:
+                return Response(
+                    {"error": "Member not found."}, status=status.HTTP_404_NOT_FOUND
+                )
+            group.primary_member = new_primary
+
+        group.save()
+        request.user.log_event(f"Admin updated billing group {group.id}.", "admin")
+        return Response(group.get_object())
+
+    def delete(self, request, group_id):
+        from profile.models import BillingGroup, BillingGroupMemberAddon
+
+        try:
+            group = BillingGroup.objects.get(pk=group_id)
+        except BillingGroup.DoesNotExist:
+            return Response(
+                {"error": "Billing group not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        for member in group.get_members():
+            member_addons = BillingGroupMemberAddon.objects.filter(
+                billing_group=group, member=member
+            )
+            for ma in member_addons:
+                if ma.stripe_subscription_item_id:
+                    try:
+                        import stripe as stripe_module
+
+                        stripe_module.SubscriptionItem.delete(
+                            ma.stripe_subscription_item_id,
+                            proration_behavior="create_prorations",
+                        )
+                    except Exception as e:
+                        from sentry_sdk import capture_exception
+
+                        capture_exception(e)
+                ma.delete()
+            member.billing_group = None
+            member.subscription_status = "inactive"
+            member.save()
+
+        group.delete()
+        request.user.log_event(f"Admin deleted billing group {group_id}.", "admin")
+        return Response({"success": True})
+
+
+class AdminBillingGroupMembers(StripeAPIView):
+    """
+    post: add or remove a member from a billing group (admin).
+    """
+
+    permission_classes = (permissions.IsAdminUser,)
+
+    def post(self, request, group_id):
+        from profile.models import BillingGroup, Profile, BillingGroupMemberAddon
+
+        try:
+            group = BillingGroup.objects.get(pk=group_id)
+        except BillingGroup.DoesNotExist:
+            return Response(
+                {"error": "Billing group not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        action = request.data.get("action")
+        member_id = request.data.get("member_id")
+
+        if action not in ("add", "remove") or not member_id:
+            return Response(
+                {"error": "action ('add' or 'remove') and member_id are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            target_profile = Profile.objects.get(user__id=member_id)
+        except Profile.DoesNotExist:
+            return Response(
+                {"error": "Member not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        if action == "add":
+            target_profile.billing_group = group
+            target_profile.subscription_status = "group_active"
+            target_profile.save()
+            request.user.log_event(
+                f"Admin added {target_profile.get_full_name()} to billing group {group.name}.",
+                "admin",
+            )
+
+        elif action == "remove":
+            member_addons = BillingGroupMemberAddon.objects.filter(
+                billing_group=group, member=target_profile
+            )
+            for ma in member_addons:
+                if ma.stripe_subscription_item_id:
+                    try:
+                        import stripe as stripe_module
+
+                        stripe_module.SubscriptionItem.delete(
+                            ma.stripe_subscription_item_id,
+                            proration_behavior="create_prorations",
+                        )
+                    except Exception as e:
+                        from sentry_sdk import capture_exception
+
+                        capture_exception(e)
+                ma.delete()
+            target_profile.billing_group = None
+            target_profile.subscription_status = "inactive"
+            target_profile.save()
+            request.user.log_event(
+                f"Admin removed {target_profile.get_full_name()} from billing group {group.name}.",
+                "admin",
+            )
+
+        return Response({"success": True, "billingGroup": group.get_object()})
+
+
+class AdminBillingGroupInvites(StripeAPIView):
+    """
+    post: admin send/resend/cancel invitations for a billing group.
+    Supports actions: "send", "resend", "cancel".
+    """
+
+    permission_classes = (permissions.IsAdminUser,)
+
+    def post(self, request, group_id):
+        from profile.models import BillingGroup, BillingGroupInvite
+        from django.utils import timezone
+
+        try:
+            group = BillingGroup.objects.get(pk=group_id)
+        except BillingGroup.DoesNotExist:
+            return Response(
+                {"error": "Billing group not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        action = request.data.get("action")
+
+        if action == "send":
+            email = request.data.get("email", "").strip().lower()
+            if not email:
+                return Response(
+                    {"error": "email is required."}, status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Invalidate any previous pending invites for this email+group
+            for old in BillingGroupInvite.objects.filter(
+                billing_group=group, email=email, accepted=False, invalidated=False
+            ):
+                old.invalidate()
+
+            invite = BillingGroupInvite.objects.create(
+                email=email,
+                billing_group=group,
+                invited_by=request.user,
+            )
+
+            from services.emails import send_single_email
+
+            invite_url = f"{config.SITE_URL}/signup?billing_group_invite={invite.invitation_token}"
+            try:
+                send_single_email(
+                    to_email=email,
+                    subject=f"You've been invited to join {group.name}",
+                    template_vars={
+                        "title": f"Join {group.name}",
+                        "message": (
+                            f"An admin has invited you to join the billing group '{group.name}'.~br~~br~"
+                            f"Click below to create your account and join the group."
+                        ),
+                        "link": invite_url,
+                        "btn_text": "Create Account & Join",
+                    },
+                    template_name="email_with_button.html",
+                    user=request.user,
+                )
+            except Exception:
+                pass
+            request.user.log_event(
+                f"Admin sent billing group invite to {email} for group {group.name}.",
+                "admin",
+            )
+            return Response(
+                {
+                    "success": True,
+                    "invite": {
+                        "id": invite.id,
+                        "email": invite.email,
+                        "expiresDate": invite.expires_date,
+                        "token": str(invite.invitation_token),
+                    },
+                },
+                status=status.HTTP_201_CREATED,
+            )
+
+        elif action == "resend":
+            invite_id = request.data.get("invite_id")
+            if not invite_id:
+                return Response(
+                    {"error": "invite_id is required."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            try:
+                old_invite = BillingGroupInvite.objects.get(
+                    pk=invite_id, billing_group=group
+                )
+            except BillingGroupInvite.DoesNotExist:
+                return Response(
+                    {"error": "Invitation not found."}, status=status.HTTP_404_NOT_FOUND
+                )
+
+            old_invite.invalidate()
+
+            new_invite = BillingGroupInvite.objects.create(
+                email=old_invite.email,
+                billing_group=group,
+                invited_by=request.user,
+            )
+
+            from services.emails import send_single_email
+
+            invite_url = f"{config.SITE_URL}/signup?billing_group_invite={new_invite.invitation_token}"
+            try:
+                send_single_email(
+                    to_email=new_invite.email,
+                    subject=f"You've been invited to join {group.name}",
+                    template_vars={
+                        "title": f"Join {group.name}",
+                        "message": (
+                            f"An admin has re-sent your invitation to join the billing group '{group.name}'.~br~~br~"
+                            f"Click below to create your account and join the group."
+                        ),
+                        "link": invite_url,
+                        "btn_text": "Create Account & Join",
+                    },
+                    template_name="email_with_button.html",
+                    user=request.user,
+                )
+            except Exception:
+                pass
+            request.user.log_event(
+                f"Admin resent billing group invite to {new_invite.email} for group {group.name}.",
+                "admin",
+            )
+            return Response(
+                {
+                    "success": True,
+                    "invite": {
+                        "id": new_invite.id,
+                        "email": new_invite.email,
+                        "expiresDate": new_invite.expires_date,
+                        "token": str(new_invite.invitation_token),
+                    },
+                }
+            )
+
+        elif action == "cancel":
+            invite_id = request.data.get("invite_id")
+            if not invite_id:
+                return Response(
+                    {"error": "invite_id is required."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            try:
+                invite = BillingGroupInvite.objects.get(
+                    pk=invite_id, billing_group=group
+                )
+            except BillingGroupInvite.DoesNotExist:
+                return Response(
+                    {"error": "Invitation not found."}, status=status.HTTP_404_NOT_FOUND
+                )
+
+            invite.invalidate()
+            request.user.log_event(
+                f"Admin cancelled billing group invite {invite_id} for group {group.name}.",
+                "admin",
+            )
+            return Response({"success": True})
+
+        else:
+            return Response(
+                {"error": "action must be 'send', 'resend', or 'cancel'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )

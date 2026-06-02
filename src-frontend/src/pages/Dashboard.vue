@@ -16,6 +16,35 @@
           </template>
           {{ $t('access.inactive') }}
         </q-banner>
+
+        <q-banner
+          v-if="subscriptionStatus === 'group_inactive'"
+          inline-actions
+          rounded
+          class="bg-negative text-white q-ma-md"
+        >
+          <template v-slot:avatar>
+            <q-icon name="mdi-alert-circle" />
+          </template>
+          <div class="text-subtitle1 text-weight-bold">
+            {{ $t('paymentPlans.groupInactiveTitle') }}
+          </div>
+          <div>{{ $t('paymentPlans.groupInactiveDescription') }}</div>
+        </q-banner>
+      </div>
+
+      <div class="q-px-md q-pb-sm">
+        <q-chip
+          :color="subscriptionStatusColor"
+          text-color="white"
+          :icon="subscriptionStatusIcon"
+        >
+          {{ $t(`adminTools.subscriptionStatusString.${subscriptionStatus}`) }}
+        </q-chip>
+      </div>
+
+      <div class="q-px-md q-pb-sm">
+        <billing-group-invite-banner @responded="getProfile" />
       </div>
 
       <h5 class="q-ma-md">
@@ -52,10 +81,11 @@ import QuickCards from '@components/QuickCards.vue';
 import { Platform } from 'quasar';
 import DashboardCard from '@components/DashboardCard.vue';
 import icons from 'src/icons';
+import BillingGroupInviteBanner from '@components/Billing/BillingGroupInviteBanner.vue';
 
 export default {
   name: 'DashboardPage',
-  components: { QuickCards, DashboardCard },
+  components: { QuickCards, DashboardCard, BillingGroupInviteBanner },
   computed: {
     Platform() {
       return Platform;
@@ -64,6 +94,29 @@ export default {
     ...mapGetters('profile', ['loggedIn', 'profile']),
     icons() {
       return icons;
+    },
+    subscriptionStatus() {
+      return this.profile?.financial?.subscriptionState;
+    },
+    subscriptionStatusColor() {
+      const map = {
+        active: 'positive',
+        group_active: 'positive',
+        cancelling: 'warning',
+        inactive: 'negative',
+        group_inactive: 'negative',
+      };
+      return map[this.subscriptionStatus] ?? 'grey';
+    },
+    subscriptionStatusIcon() {
+      const map = {
+        active: 'mdi-check-circle',
+        group_active: 'mdi-account-group',
+        cancelling: 'mdi-clock-alert',
+        inactive: 'mdi-cancel',
+        group_inactive: 'mdi-alert-circle',
+      };
+      return map[this.subscriptionStatus] ?? 'mdi-help-circle';
     },
   },
   methods: {

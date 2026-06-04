@@ -61,7 +61,7 @@ class GetMembers(APIView):
         members = members_queryset.all()
 
         for member in members:
-            filtered.append(member.profile.get_basic_profile())
+            filtered.append(member.profile.get_admin_profile())
 
         return Response(filtered)
 
@@ -582,6 +582,17 @@ class MemberProfile(APIView):
         member.profile.screen_name = body.get("screenName")
         member.profile.vehicle_registration_plate = body.get("vehicleRegistrationPlate")
         member.profile.exclude_from_email_export = body.get("excludeFromEmailExport")
+        member.profile.suffix = body.get("suffix", "")
+        member.profile.birthdate = body.get("birthdate") or None
+        member.profile.notes = body.get("notes", "")
+        member.profile.additional_contacts = body.get("additionalContacts", "")
+        member.profile.organization = body.get("organization", "")
+        member.profile.address_line1 = body.get("addressLine1", "")
+        member.profile.address_line2 = body.get("addressLine2", "")
+        member.profile.city = body.get("city", "")
+        member.profile.address_state_province = body.get("addressStateProvince", "")
+        member.profile.country = body.get("country", "")
+        member.profile.postal_code = body.get("postalCode", "")
 
         member.save()
         member.profile.save()

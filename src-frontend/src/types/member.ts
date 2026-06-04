@@ -41,6 +41,18 @@ export const MemberProfileSchema = z.object({
     last4: z.string(),
   }),
   subscriptionStatus: SubscriptionStateSchema,
+  // Extended admin profile fields
+  suffix: z.string().optional(),
+  birthdate: z.string().nullable().optional(),
+  notes: z.string().optional(),
+  additionalContacts: z.string().optional(),
+  organization: z.string().optional(),
+  addressLine1: z.string().optional(),
+  addressLine2: z.string().optional(),
+  city: z.string().optional(),
+  addressStateProvince: z.string().optional(),
+  country: z.string().optional(),
+  postalCode: z.string().optional(),
 });
 
 export type MemberProfile = z.infer<typeof MemberProfileSchema>;

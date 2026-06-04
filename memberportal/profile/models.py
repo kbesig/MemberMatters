@@ -418,6 +418,11 @@ class BillingGroupInvite(
         self.save()
 
 
+def _get_default_country():
+    from constance import config as constance_config
+    return getattr(constance_config, "SITE_DEFAULT_COUNTRY", "US")
+
+
 class Profile(ExportModelOperationsMixin("profile"), models.Model):
     STATES = (
         ("noob", "Needs Induction"),
@@ -529,6 +534,21 @@ class Profile(ExportModelOperationsMixin("profile"), models.Model):
         blank=True,
         help_text="Temporarily stores invitation token during registration",
     )
+
+    # Extended profile fields (migrated from legacy system)
+    suffix = models.CharField(max_length=45, blank=True, default="")
+    birthdate = models.DateField(null=True, blank=True)
+    notes = models.TextField(blank=True, default="")
+    additional_contacts = models.TextField(blank=True, default="")
+
+    # Address fields
+    organization = models.CharField(max_length=255, blank=True, default="")
+    address_line1 = models.CharField(max_length=100, blank=True, default="")
+    address_line2 = models.CharField(max_length=100, blank=True, default="")
+    city = models.CharField(max_length=100, blank=True, default="")
+    address_state_province = models.CharField(max_length=100, blank=True, default="")
+    country = models.CharField(max_length=100, blank=True, default=_get_default_country)
+    postal_code = models.CharField(max_length=20, blank=True, default="")
 
     def __str__(self):
         return str(self.user)
@@ -729,6 +749,29 @@ class Profile(ExportModelOperationsMixin("profile"), models.Model):
             },
             "subscriptionStatus": self.subscription_status,
         }
+
+    def get_admin_profile(self):
+        """
+        Returns get_basic_profile() extended with admin-only fields.
+        :return: {}
+        """
+        profile = self.get_basic_profile()
+        profile.update(
+            {
+                "suffix": self.suffix,
+                "birthdate": self.birthdate.isoformat() if self.birthdate else None,
+                "notes": self.notes,
+                "additionalContacts": self.additional_contacts,
+                "organization": self.organization,
+                "addressLine1": self.address_line1,
+                "addressLine2": self.address_line2,
+                "city": self.city,
+                "addressStateProvince": self.address_state_province,
+                "country": self.country,
+                "postalCode": self.postal_code,
+            }
+        )
+        return profile
 
     def get_access_permissions(self, ignore_user_state=False):
         """

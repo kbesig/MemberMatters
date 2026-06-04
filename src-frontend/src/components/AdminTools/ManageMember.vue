@@ -261,6 +261,184 @@
                     />
                   </template>
                 </q-input>
+
+                <q-input
+                  v-model="profileForm.suffix"
+                  outlined
+                  :debounce="debounceLength"
+                  :label="$t('form.suffix')"
+                  @update:model-value="saveChange('suffix')"
+                >
+                  <template #append>
+                    <saved-notification
+                      :success="saved.suffix"
+                      :error="saved.error"
+                    />
+                  </template>
+                </q-input>
+
+                <q-input
+                  v-model="profileForm.birthdate"
+                  outlined
+                  :debounce="debounceLength"
+                  :label="$t('form.birthdate')"
+                  type="date"
+                  @update:model-value="saveChange('birthdate')"
+                >
+                  <template #append>
+                    <saved-notification
+                      :success="saved.birthdate"
+                      :error="saved.error"
+                    />
+                  </template>
+                </q-input>
+
+                <h5 class="q-mt-md q-mb-sm">
+                  {{ $t('adminTools.addressSection') }}
+                </h5>
+
+                <q-input
+                  v-model="profileForm.organization"
+                  outlined
+                  :debounce="debounceLength"
+                  :label="$t('form.organization')"
+                  @update:model-value="saveChange('organization')"
+                >
+                  <template #append>
+                    <saved-notification
+                      :success="saved.organization"
+                      :error="saved.error"
+                    />
+                  </template>
+                </q-input>
+
+                <q-input
+                  v-model="profileForm.addressLine1"
+                  outlined
+                  :debounce="debounceLength"
+                  :label="$t('form.addressLine1')"
+                  @update:model-value="saveChange('addressLine1')"
+                >
+                  <template #append>
+                    <saved-notification
+                      :success="saved.addressLine1"
+                      :error="saved.error"
+                    />
+                  </template>
+                </q-input>
+
+                <q-input
+                  v-model="profileForm.addressLine2"
+                  outlined
+                  :debounce="debounceLength"
+                  :label="$t('form.addressLine2')"
+                  @update:model-value="saveChange('addressLine2')"
+                >
+                  <template #append>
+                    <saved-notification
+                      :success="saved.addressLine2"
+                      :error="saved.error"
+                    />
+                  </template>
+                </q-input>
+
+                <q-input
+                  v-model="profileForm.city"
+                  outlined
+                  :debounce="debounceLength"
+                  :label="$t('form.city')"
+                  @update:model-value="saveChange('city')"
+                >
+                  <template #append>
+                    <saved-notification
+                      :success="saved.city"
+                      :error="saved.error"
+                    />
+                  </template>
+                </q-input>
+
+                <q-input
+                  v-model="profileForm.addressStateProvince"
+                  outlined
+                  :debounce="debounceLength"
+                  :label="$t('form.addressStateProvince')"
+                  @update:model-value="saveChange('addressStateProvince')"
+                >
+                  <template #append>
+                    <saved-notification
+                      :success="saved.addressStateProvince"
+                      :error="saved.error"
+                    />
+                  </template>
+                </q-input>
+
+                <q-input
+                  v-model="profileForm.country"
+                  outlined
+                  :debounce="debounceLength"
+                  :label="$t('form.country')"
+                  @update:model-value="saveChange('country')"
+                >
+                  <template #append>
+                    <saved-notification
+                      :success="saved.country"
+                      :error="saved.error"
+                    />
+                  </template>
+                </q-input>
+
+                <q-input
+                  v-model="profileForm.postalCode"
+                  outlined
+                  :debounce="debounceLength"
+                  :label="$t('form.postalCode')"
+                  @update:model-value="saveChange('postalCode')"
+                >
+                  <template #append>
+                    <saved-notification
+                      :success="saved.postalCode"
+                      :error="saved.error"
+                    />
+                  </template>
+                </q-input>
+
+                <h5 class="q-mt-md q-mb-sm">
+                  {{ $t('adminTools.adminOnlySection') }}
+                </h5>
+
+                <q-input
+                  v-model="profileForm.additionalContacts"
+                  outlined
+                  type="textarea"
+                  autogrow
+                  :debounce="debounceLength"
+                  :label="$t('form.additionalContacts')"
+                  @update:model-value="saveChange('additionalContacts')"
+                >
+                  <template #append>
+                    <saved-notification
+                      :success="saved.additionalContacts"
+                      :error="saved.error"
+                    />
+                  </template>
+                </q-input>
+
+                <q-input
+                  v-model="profileForm.notes"
+                  outlined
+                  type="textarea"
+                  autogrow
+                  :debounce="debounceLength"
+                  :label="$t('form.adminNotes')"
+                  @update:model-value="saveChange('notes')"
+                >
+                  <template #append>
+                    <saved-notification
+                      :success="saved.notes"
+                      :error="saved.error"
+                    />
+                  </template>
+                </q-input>
               </q-form>
             </div>
 
@@ -1579,6 +1757,17 @@ export default defineComponent({
         phone: '',
         screenName: '',
         vehicleRegistrationPlate: '',
+        suffix: '',
+        birthdate: '',
+        organization: '',
+        addressLine1: '',
+        addressLine2: '',
+        city: '',
+        addressStateProvince: '',
+        country: '',
+        postalCode: '',
+        additionalContacts: '',
+        notes: '',
       },
       saved: {
         // if there was an error saving the form
@@ -1591,6 +1780,17 @@ export default defineComponent({
         phone: false,
         screenName: false,
         vehicleRegistrationPlate: false,
+        suffix: false,
+        birthdate: false,
+        organization: false,
+        addressLine1: false,
+        addressLine2: false,
+        city: false,
+        addressStateProvince: false,
+        country: false,
+        postalCode: false,
+        additionalContacts: false,
+        notes: false,
       },
       billing: null as MemberBillingInfo | null,
       logs: {
@@ -1629,6 +1829,17 @@ export default defineComponent({
       this.profileForm.screenName = this.selectedMember.screenName;
       this.profileForm.vehicleRegistrationPlate =
         this.selectedMember.vehicleRegistrationPlate;
+      this.profileForm.suffix = this.selectedMember.suffix ?? '';
+      this.profileForm.birthdate = this.selectedMember.birthdate ?? '';
+      this.profileForm.organization = this.selectedMember.organization ?? '';
+      this.profileForm.addressLine1 = this.selectedMember.addressLine1 ?? '';
+      this.profileForm.addressLine2 = this.selectedMember.addressLine2 ?? '';
+      this.profileForm.city = this.selectedMember.city ?? '';
+      this.profileForm.addressStateProvince = this.selectedMember.addressStateProvince ?? '';
+      this.profileForm.country = this.selectedMember.country ?? '';
+      this.profileForm.postalCode = this.selectedMember.postalCode ?? '';
+      this.profileForm.additionalContacts = this.selectedMember.additionalContacts ?? '';
+      this.profileForm.notes = this.selectedMember.notes ?? '';
     },
     saveChange(field: keyof typeof this.saved) {
       const formRef = this.$refs.formRef as typeof QForm;

@@ -16,6 +16,10 @@ CONSTANCE_CONFIG = {
         "https://membermatters.org/en/latest/POST_INSTALL_STEPS.html#locale-language-configuration for IMPORTANT considerations "
         "and supported locales before configuring.",
     ),
+    "SITE_DEFAULT_COUNTRY": (
+        "US",
+        "The default country pre-filled on member address fields. Use a full country name (e.g. United States, Australia).",
+    ),
     "SITE_BANNER": (
         "",
         "A site wide banner that can display useful information. Leave empty to turn off.",
@@ -421,6 +425,7 @@ CONSTANCE_CONFIG_FIELDSETS = OrderedDict(
                 "SITE_NAME",
                 "SITE_OWNER",
                 "SITE_LOCALE_CURRENCY",
+                "SITE_DEFAULT_COUNTRY",
                 "GOOGLE_ANALYTICS_MEASUREMENT_ID",
                 "SITE_BANNER",
                 "METRICS_INTERVAL",

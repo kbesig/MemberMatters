@@ -117,7 +117,25 @@ def fetch_members(limit):
                 WHERE e.Email IS NOT NULL
                 LIMIT %s;
             """, (limit,))
-            return cur.fetchall()
+            rows = cur.fetchall()
+
+            # Fetch all fobs for this batch in one query, keyed by Owner (MemberID)
+            member_ids = [r["MemberID"] for r in rows]
+            fobs_by_member = {}
+            if member_ids:
+                fmt = ",".join(["%s"] * len(member_ids))
+                cur.execute(
+                    f"SELECT Owner, FobScanID, FobLabel FROM access_fobs WHERE Owner IN ({fmt}) ORDER BY Owner, FobLabel",
+                    member_ids,
+                )
+                for fob in cur.fetchall():
+                    fobs_by_member.setdefault(fob["Owner"], []).append(fob)
+
+            # Attach fobs list to each member row
+            for row in rows:
+                row["_fobs"] = fobs_by_member.get(row["MemberID"], [])
+
+            return rows
 
 
 # ---------------------------------------------------------------------------
@@ -145,7 +163,12 @@ def import_member(row, dry_run):
     state = STATUS_MAP.get(row["MembersStatus"], "noob")
     phone = clean_phone(row["PhoneNum"])
 
-    print(f"  IMPORT {email} ({first} {last}) state={state}")
+    fobs = row.get("_fobs", [])
+    primary_fob = fobs[0]["FobScanID"] if fobs else None
+    extra_fobs = fobs[1:]
+
+    fob_summary = f"  fobs={len(fobs)}" if fobs else "  fobs=none"
+    print(f"  IMPORT {email} ({first} {last}) state={state}{fob_summary}")
 
     if dry_run:
         return "dry"
@@ -163,6 +186,15 @@ def import_member(row, dry_run):
         # We call Profile.save() which sets created=now() on first save, then
         # use .update() below to backfill created from InitialJoinDate without
         # re-triggering the save() override.
+        # Build notes: legacy notes + extra fobs appended
+        notes = clean_str(row["Notes"])
+        if extra_fobs:
+            extra_lines = "\n".join(
+                f"  Fob {f['FobLabel']} (ScanID: {f['FobScanID']})" for f in extra_fobs
+            )
+            fob_block = f"Additional fobs from legacy system:\n{extra_lines}"
+            notes = (notes + "\n\n" + fob_block).strip()
+
         profile = Profile.objects.create(
             user=user,
             first_name=first[:30],
@@ -170,9 +202,10 @@ def import_member(row, dry_run):
             screen_name=screen_name,
             state=state,
             phone=phone,
+            rfid=primary_fob,
             suffix=clean_str(row["Suffix"])[:45],
             birthdate=row["Birthdate"] or None,
-            notes=clean_str(row["Notes"]),
+            notes=notes,
             organization=clean_str(row["Organization"])[:255],
             address_line1=clean_str(row["AddressLine1"])[:100],
             address_line2=clean_str(row["AddressLine2"])[:100],

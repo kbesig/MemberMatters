@@ -1120,22 +1120,6 @@ class StripeWebhook(StripeAPIView):
             member_profile.user.email_notification(subject, message)
             member_profile.user.log_event("Membership payment failed", "stripe")
 
-            # cascade group_inactive to all group members
-            if hasattr(member_profile, "billing_group_primary_member"):
-                billing_group = member_profile.billing_group_primary_member
-                for member in billing_group.get_members():
-                    if member != member_profile:
-                        member.subscription_status = "group_inactive"
-                        member.save()
-                        member.user.log_event(
-                            "Billing group primary member payment failed — status set to group_inactive.",
-                            "stripe",
-                        )
-                        member.user.email_notification(
-                            f"Billing group subscription issue",
-                            f"The primary member of your billing group has a payment issue. "
-                            f"Your site access may be affected until the issue is resolved.",
-                        )
 
         if event_type == "customer.subscription.deleted":
             # the subscription was deleted, so deactivate the member

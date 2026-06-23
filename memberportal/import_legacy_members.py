@@ -109,7 +109,9 @@ def fetch_members(limit):
                     h.Country,
                     h.PostalCode,
                     e.Email,
-                    p.PhoneNum
+                    p.PhoneNum,
+                    h.HouseholdsStatus, 
+                    m.MembersStatus 
                 FROM members m
                 LEFT JOIN households h  ON m.HouseID   = h.HouseID
                 LEFT JOIN emails e      ON m.MemberID  = e.MemberID AND e.`Primary` = 1

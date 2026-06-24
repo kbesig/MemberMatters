@@ -7,7 +7,7 @@ import profile.models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('profile', '0020_shelf_rental_models'),
+        ('profile', '0019_billing_group_and_shelf_models'),  # was 0022_auto_20260624_0202
     ]
 
     operations = [

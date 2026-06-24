@@ -298,9 +298,6 @@ class User(ExportModelOperationsMixin("user"), AbstractBaseUser, PermissionsMixi
 
         return True
 
-    billing_group_invite = models.IntegerField(default=0)
-    billing_group_member = models.IntegerField(default=0)
-
 
 class BillingGroup(ExportModelOperationsMixin("billing-group"), models.Model):
     """A billing group where one primary member pays for additional members via addon charges."""

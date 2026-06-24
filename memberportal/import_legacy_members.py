@@ -70,6 +70,7 @@ PHONE_RE = re.compile(r"^\+?1?\d{9,15}$")
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def clean_phone(raw):
     """Strip non-numeric chars, validate against Profile regex, return or empty string."""
     if not raw:
@@ -90,7 +91,8 @@ def fetch_members(limit):
     conn = pymysql.connect(**MYSQL_CONFIG)
     with conn:
         with conn.cursor() as cur:
-            cur.execute("""
+            cur.execute(
+                """
                 SELECT
                     m.MemberID,
                     m.FirstName,
@@ -118,7 +120,9 @@ def fetch_members(limit):
                 LEFT JOIN phones p      ON m.MemberID  = p.MemberID AND p.`Primary` = 1
                 WHERE e.Email IS NOT NULL
                 LIMIT %s;
-            """, (limit,))
+            """,
+                (limit,),
+            )
             rows = cur.fetchall()
 
             # Fetch all fobs for this batch in one query, keyed by Owner (MemberID)
@@ -144,6 +148,7 @@ def fetch_members(limit):
 # Import
 # ---------------------------------------------------------------------------
 
+
 def import_member(row, dry_run):
     email = clean_str(row["Email"]).lower()
     if not email:
@@ -155,7 +160,7 @@ def import_member(row, dry_run):
         return "skip"
 
     first = clean_str(row["FirstName"]) or "Unknown"
-    last  = clean_str(row["LastName"])  or "Unknown"
+    last = clean_str(row["LastName"]) or "Unknown"
 
     # screen_name: use DisplayName if present, else First Last
     screen_name = clean_str(row["DisplayName"]) or f"{first} {last}"
@@ -222,6 +227,7 @@ def import_member(row, dry_run):
         if row["InitialJoinDate"]:
             from django.utils.timezone import make_aware
             from datetime import datetime as dt
+
             legacy_created = make_aware(
                 dt.combine(row["InitialJoinDate"], dt.min.time())
             )
@@ -234,16 +240,25 @@ def import_member(row, dry_run):
 # Main
 # ---------------------------------------------------------------------------
 
+
 def main():
-    parser = argparse.ArgumentParser(description="Import legacy MySQL members into MemberMatters.")
-    parser.add_argument("--limit", type=int, default=5, help="Max members to import (default: 5)")
+    parser = argparse.ArgumentParser(
+        description="Import legacy MySQL members into MemberMatters."
+    )
+    parser.add_argument(
+        "--limit", type=int, default=5, help="Max members to import (default: 5)"
+    )
     parser.add_argument("--all", action="store_true", help="Import all members")
-    parser.add_argument("--dry-run", action="store_true", help="Preview without writing")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Preview without writing"
+    )
     args = parser.parse_args()
 
     limit = 999999 if args.all else args.limit
 
-    print(f"{'DRY RUN — ' if args.dry_run else ''}Fetching up to {limit} members from legacy DB...")
+    print(
+        f"{'DRY RUN — ' if args.dry_run else ''}Fetching up to {limit} members from legacy DB..."
+    )
     rows = fetch_members(limit)
     print(f"Fetched {len(rows)} rows.\n")
 
@@ -252,7 +267,9 @@ def main():
         result = import_member(row, dry_run=args.dry_run)
         counts[result] = counts.get(result, 0) + 1
 
-    print(f"\nDone. imported={counts['imported']} skipped={counts['skip']} dry={counts['dry']}")
+    print(
+        f"\nDone. imported={counts['imported']} skipped={counts['skip']} dry={counts['dry']}"
+    )
 
 
 if __name__ == "__main__":

@@ -811,7 +811,9 @@ class MemberBillingInfo(StripeAPIView):
             # if we got subscription details
             if s:
                 from profile.models import BillingGroupMemberAddon
-                from api_admin_tools.models import SubscriptionAddon as SubscriptionAddonModel
+                from api_admin_tools.models import (
+                    SubscriptionAddon as SubscriptionAddonModel,
+                )
 
                 # If this member is a billing group primary, collect member addon data
                 billing_group_data = None
@@ -835,28 +837,34 @@ class MemberBillingInfo(StripeAPIView):
                     # Build per-member rows from actual group members
                     member_rows = []
                     for profile in billing_group.members.all():
-                        member_addons = [r for r in addon_records if r.member_id == profile.id]
+                        member_addons = [
+                            r for r in addon_records if r.member_id == profile.id
+                        ]
                         if member_addons:
                             for ma in member_addons:
-                                member_rows.append({
+                                member_rows.append(
+                                    {
+                                        "memberName": profile.get_full_name(),
+                                        "memberEmail": profile.user.email,
+                                        "addonName": ma.addon.name,
+                                        "cost": ma.locked_cost,
+                                        "currency": ma.locked_currency,
+                                        "interval": ma.locked_interval,
+                                        "intervalCount": ma.locked_interval_count,
+                                    }
+                                )
+                        else:
+                            member_rows.append(
+                                {
                                     "memberName": profile.get_full_name(),
                                     "memberEmail": profile.user.email,
-                                    "addonName": ma.addon.name,
-                                    "cost": ma.locked_cost,
-                                    "currency": ma.locked_currency,
-                                    "interval": ma.locked_interval,
-                                    "intervalCount": ma.locked_interval_count,
-                                })
-                        else:
-                            member_rows.append({
-                                "memberName": profile.get_full_name(),
-                                "memberEmail": profile.user.email,
-                                "addonName": None,
-                                "cost": None,
-                                "currency": None,
-                                "interval": None,
-                                "intervalCount": None,
-                            })
+                                    "addonName": None,
+                                    "cost": None,
+                                    "currency": None,
+                                    "interval": None,
+                                    "intervalCount": None,
+                                }
+                            )
 
                     billing_group_data = {
                         "id": billing_group.id,
@@ -867,7 +875,9 @@ class MemberBillingInfo(StripeAPIView):
                 # Build a name lookup from local SubscriptionAddon records (price_id → name)
                 addon_name_lookup = {
                     a.stripe_price_id: a.name
-                    for a in SubscriptionAddonModel.objects.exclude(stripe_price_id=None)
+                    for a in SubscriptionAddonModel.objects.exclude(
+                        stripe_price_id=None
+                    )
                 }
 
                 # Standalone addons: Stripe items that are not the base plan or billing group items
@@ -902,8 +912,12 @@ class MemberBillingInfo(StripeAPIView):
 
                 # Stripe API 2024-09-30+ moved period fields to subscription items
                 first_item = s.get("items", {}).get("data", [None])[0] or {}
-                current_period_end = s.get("current_period_end") or first_item.get("current_period_end")
-                billing_cycle_anchor = s.get("billing_cycle_anchor") or first_item.get("billing_cycle_anchor")
+                current_period_end = s.get("current_period_end") or first_item.get(
+                    "current_period_end"
+                )
+                billing_cycle_anchor = s.get("billing_cycle_anchor") or first_item.get(
+                    "billing_cycle_anchor"
+                )
 
                 billing_info["subscription"] = {
                     "status": member.profile.subscription_status,
@@ -989,7 +1003,9 @@ class AdminMemberAddonManage(StripeAPIView):
                 f"Admin removed subscription item '{subscription_item_id}' from subscription.",
                 "stripe",
             )
-            return Response({"success": True, "message": "Add-on removed successfully."})
+            return Response(
+                {"success": True, "message": "Add-on removed successfully."}
+            )
 
         except stripe.error.StripeError as e:
             capture_exception(e)

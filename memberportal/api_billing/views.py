@@ -538,10 +538,14 @@ class CompleteSignup(StripeAPIView):
                 invite = BillingGroupInvite.objects.get(invitation_token=token)
             except BillingGroupInvite.DoesNotExist:
                 # Token record gone — try to find a valid invite by email as fallback
-                fallback = BillingGroupInvite.objects.filter(
-                    email=member_profile.user.email.lower(),
-                    accepted=False,
-                ).order_by("-created_date").first()
+                fallback = (
+                    BillingGroupInvite.objects.filter(
+                        email=member_profile.user.email.lower(),
+                        accepted=False,
+                    )
+                    .order_by("-created_date")
+                    .first()
+                )
                 if fallback and not fallback.is_expired():
                     invite = fallback
 
@@ -688,7 +692,8 @@ class SubscriptionInfo(StripeAPIView):
                         addon_items.append(
                             {
                                 "id": item["id"],
-                                "name": item["price"].get("nickname") or item["price"]["id"],
+                                "name": item["price"].get("nickname")
+                                or item["price"]["id"],
                                 "cost": item["price"].get("unit_amount"),
                                 "currency": item["price"].get("currency"),
                                 "interval": recurring.get("interval"),
@@ -699,8 +704,12 @@ class SubscriptionInfo(StripeAPIView):
 
                 # Stripe API 2024-09-30+ moved period fields to subscription items
                 first_item = s.get("items", {}).get("data", [None])[0] or {}
-                current_period_end = s.get("current_period_end") or first_item.get("current_period_end")
-                billing_cycle_anchor = s.get("billing_cycle_anchor") or first_item.get("billing_cycle_anchor")
+                current_period_end = s.get("current_period_end") or first_item.get(
+                    "current_period_end"
+                )
+                billing_cycle_anchor = s.get("billing_cycle_anchor") or first_item.get(
+                    "billing_cycle_anchor"
+                )
 
                 subscription = {
                     "billingCycleAnchor": billing_cycle_anchor,
@@ -1102,7 +1111,11 @@ class StripeWebhook(StripeAPIView):
             # For already-active members, re-confirm subscription_status on renewal
             # (handles edge cases like cancelling -> renewed, or other status drift)
             elif member_profile.state == "active" and invoice_status == "paid":
-                if member_profile.subscription_status not in ("active", "group_active", "group_inactive"):
+                if member_profile.subscription_status not in (
+                    "active",
+                    "group_active",
+                    "group_inactive",
+                ):
                     member_profile.subscription_status = "active"
                     member_profile.save()
 
@@ -1119,7 +1132,6 @@ class StripeWebhook(StripeAPIView):
 
             member_profile.user.email_notification(subject, message)
             member_profile.user.log_event("Membership payment failed", "stripe")
-
 
         if event_type == "customer.subscription.deleted":
             # the subscription was deleted, so deactivate the member

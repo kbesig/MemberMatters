@@ -75,6 +75,7 @@ ACTIVE_STATUS = 6  # MembersStatus = Active in legacy
 # Fetch
 # ---------------------------------------------------------------------------
 
+
 def fetch_households():
     """
     Returns a list of dicts, one per legacy household member row.
@@ -109,6 +110,7 @@ def fetch_households():
 # Group by HouseID
 # ---------------------------------------------------------------------------
 
+
 def group_by_house(rows):
     """Returns {HouseID: [row, ...]} preserving MemberID ASC order."""
     houses = defaultdict(list)
@@ -131,6 +133,7 @@ def pick_primary(members):
 # Import one household
 # ---------------------------------------------------------------------------
 
+
 def import_household(house_id, members, dry_run, skip_inactive):
     """
     Returns one of: "created", "skip_no_members", "skip_single",
@@ -147,7 +150,9 @@ def import_household(house_id, members, dry_run, skip_inactive):
             pass  # member wasn't imported (no email match)
 
     if len(profiles) < 2:
-        print(f"  SKIP HouseID={house_id} — only {len(profiles)} imported member(s) found")
+        print(
+            f"  SKIP HouseID={house_id} — only {len(profiles)} imported member(s) found"
+        )
         return "skip_single"
 
     primary_row = pick_primary([p[0] for p in profiles])
@@ -156,26 +161,35 @@ def import_household(house_id, members, dry_run, skip_inactive):
         primary_user = User.objects.get(email__iexact=primary_email)
         primary_profile = primary_user.profile
     except User.DoesNotExist:
-        print(f"  SKIP HouseID={house_id} — primary MemberID={primary_row['MemberID']} not in system")
+        print(
+            f"  SKIP HouseID={house_id} — primary MemberID={primary_row['MemberID']} not in system"
+        )
         return "skip_no_members"
 
     # Idempotency: already owns a BillingGroup?
-    if hasattr(primary_profile, "billing_group_primary_member") and \
-            primary_profile.billing_group_primary_member is not None:
-        print(f"  SKIP HouseID={house_id} — {primary_email} already owns BillingGroup "
-              f"#{primary_profile.billing_group_primary_member.id}")
+    if (
+        hasattr(primary_profile, "billing_group_primary_member")
+        and primary_profile.billing_group_primary_member is not None
+    ):
+        print(
+            f"  SKIP HouseID={house_id} — {primary_email} already owns BillingGroup "
+            f"#{primary_profile.billing_group_primary_member.id}"
+        )
         return "skip_already_exists"
 
     primary_state = primary_profile.state
     if skip_inactive and primary_state != "active":
-        print(f"  SKIP HouseID={house_id} — primary {primary_email} state={primary_state} (--skip-inactive)")
+        print(
+            f"  SKIP HouseID={house_id} — primary {primary_email} state={primary_state} (--skip-inactive)"
+        )
         return "skip_inactive"
 
     group_name = f"Household {house_id}"
 
     # Collect non-primary members
     other_profiles = [
-        prof for (row, prof) in profiles
+        prof
+        for (row, prof) in profiles
         if prof.pk != primary_profile.pk
         and prof.billing_group is None  # not already in a group
     ]
@@ -184,8 +198,10 @@ def import_household(house_id, members, dry_run, skip_inactive):
     if primary_state != "active":
         warn = f"  ⚠  primary {primary_email} state={primary_state} — billing not functional until active"
 
-    print(f"  CREATE BillingGroup '{group_name}': primary={primary_email} ({primary_state}), "
-          f"{len(other_profiles)} member(s)")
+    print(
+        f"  CREATE BillingGroup '{group_name}': primary={primary_email} ({primary_state}), "
+        f"{len(other_profiles)} member(s)"
+    )
     if warn:
         print(warn)
 
@@ -212,17 +228,24 @@ def import_household(house_id, members, dry_run, skip_inactive):
 # Main
 # ---------------------------------------------------------------------------
 
+
 def main():
     parser = argparse.ArgumentParser(
         description="Import legacy households as BillingGroups in MemberMatters."
     )
-    parser.add_argument("--dry-run", action="store_true",
-                        help="Preview without writing anything.")
-    parser.add_argument("--skip-inactive", action="store_true",
-                        help="Skip households where the heuristic primary is not active.")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Preview without writing anything."
+    )
+    parser.add_argument(
+        "--skip-inactive",
+        action="store_true",
+        help="Skip households where the heuristic primary is not active.",
+    )
     args = parser.parse_args()
 
-    print(f"{'DRY RUN — ' if args.dry_run else ''}Fetching household data from legacy DB...")
+    print(
+        f"{'DRY RUN — ' if args.dry_run else ''}Fetching household data from legacy DB..."
+    )
     rows = fetch_households()
     print(f"Fetched {len(rows)} member rows across multi-member households.\n")
 
@@ -253,8 +276,12 @@ Done.
 """)
 
     if not args.dry_run and counts["created"] > 0:
-        print("NOTE: BillingGroups with an inactive/noob primary member have been created")
-        print("      but Stripe billing will not function until the primary subscribes.")
+        print(
+            "NOTE: BillingGroups with an inactive/noob primary member have been created"
+        )
+        print(
+            "      but Stripe billing will not function until the primary subscribes."
+        )
         print("      Search output above for '⚠' lines to identify them.\n")
 
 

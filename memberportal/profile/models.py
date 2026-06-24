@@ -20,7 +20,6 @@ from services.emails import send_single_email, send_email_to_admin
 from services import sms
 from django_prometheus.models import ExportModelOperationsMixin
 
-
 logger = logging.getLogger("profile")
 
 utc = pytz.UTC
@@ -298,9 +297,6 @@ class User(ExportModelOperationsMixin("user"), AbstractBaseUser, PermissionsMixi
 
         return True
 
-    billing_group_invite = models.IntegerField(default=0)
-    billing_group_member = models.IntegerField(default=0)
-
 
 class BillingGroup(ExportModelOperationsMixin("billing-group"), models.Model):
     """A billing group where one primary member pays for additional members via addon charges."""
@@ -420,6 +416,7 @@ class BillingGroupInvite(
 
 def _get_default_country():
     from constance import config as constance_config
+
     return getattr(constance_config, "SITE_DEFAULT_COUNTRY", "US")
 
 

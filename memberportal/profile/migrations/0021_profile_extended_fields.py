@@ -7,63 +7,68 @@ import profile.models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('profile', '0020_shelf_rental_models'),
+        (
+            "profile",
+            "0019_billing_group_and_shelf_models",
+        ),  # was 0022_auto_20260624_0202
     ]
 
     operations = [
         migrations.AddField(
-            model_name='profile',
-            name='additional_contacts',
-            field=models.TextField(blank=True, default=''),
+            model_name="profile",
+            name="additional_contacts",
+            field=models.TextField(blank=True, default=""),
         ),
         migrations.AddField(
-            model_name='profile',
-            name='address_line1',
-            field=models.CharField(blank=True, default='', max_length=100),
+            model_name="profile",
+            name="address_line1",
+            field=models.CharField(blank=True, default="", max_length=100),
         ),
         migrations.AddField(
-            model_name='profile',
-            name='address_line2',
-            field=models.CharField(blank=True, default='', max_length=100),
+            model_name="profile",
+            name="address_line2",
+            field=models.CharField(blank=True, default="", max_length=100),
         ),
         migrations.AddField(
-            model_name='profile',
-            name='address_state_province',
-            field=models.CharField(blank=True, default='', max_length=100),
+            model_name="profile",
+            name="address_state_province",
+            field=models.CharField(blank=True, default="", max_length=100),
         ),
         migrations.AddField(
-            model_name='profile',
-            name='birthdate',
+            model_name="profile",
+            name="birthdate",
             field=models.DateField(blank=True, null=True),
         ),
         migrations.AddField(
-            model_name='profile',
-            name='city',
-            field=models.CharField(blank=True, default='', max_length=100),
+            model_name="profile",
+            name="city",
+            field=models.CharField(blank=True, default="", max_length=100),
         ),
         migrations.AddField(
-            model_name='profile',
-            name='country',
-            field=models.CharField(blank=True, default=profile.models._get_default_country, max_length=100),
+            model_name="profile",
+            name="country",
+            field=models.CharField(
+                blank=True, default=profile.models._get_default_country, max_length=100
+            ),
         ),
         migrations.AddField(
-            model_name='profile',
-            name='notes',
-            field=models.TextField(blank=True, default=''),
+            model_name="profile",
+            name="notes",
+            field=models.TextField(blank=True, default=""),
         ),
         migrations.AddField(
-            model_name='profile',
-            name='organization',
-            field=models.CharField(blank=True, default='', max_length=255),
+            model_name="profile",
+            name="organization",
+            field=models.CharField(blank=True, default="", max_length=255),
         ),
         migrations.AddField(
-            model_name='profile',
-            name='postal_code',
-            field=models.CharField(blank=True, default='', max_length=20),
+            model_name="profile",
+            name="postal_code",
+            field=models.CharField(blank=True, default="", max_length=20),
         ),
         migrations.AddField(
-            model_name='profile',
-            name='suffix',
-            field=models.CharField(blank=True, default='', max_length=45),
+            model_name="profile",
+            name="suffix",
+            field=models.CharField(blank=True, default="", max_length=45),
         ),
     ]

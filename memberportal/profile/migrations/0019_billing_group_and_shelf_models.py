@@ -9,158 +9,333 @@ import uuid
 
 class Migration(migrations.Migration):
 
-    replaces = [('profile', '0019_billing_group_models'), ('profile', '0020_shelf_rental_models'), ('profile', '0022_auto_20260624_0202')]
+    replaces = [
+        ("profile", "0019_billing_group_models"),
+        ("profile", "0020_shelf_rental_models"),
+        ("profile", "0022_auto_20260624_0202"),
+    ]
 
     dependencies = [
-        ('api_admin_tools', '0012_subscriptionaddon'),
-        ('profile', '0018_alter_profile_subscription_status'),
+        ("api_admin_tools", "0012_subscriptionaddon"),
+        ("profile", "0018_alter_profile_subscription_status"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='BillingGroup',
+            name="BillingGroup",
             fields=[
-                ('id', models.AutoField(primary_key=True, serialize=False)),
-                ('name', models.CharField(max_length=255)),
+                ("id", models.AutoField(primary_key=True, serialize=False)),
+                ("name", models.CharField(max_length=255)),
             ],
-            bases=(django_prometheus.models.ExportModelOperationsMixin('billing-group'), models.Model),
+            bases=(
+                django_prometheus.models.ExportModelOperationsMixin("billing-group"),
+                models.Model,
+            ),
         ),
         migrations.AddField(
-            model_name='profile',
-            name='pending_billing_group_invite_token',
-            field=models.UUIDField(blank=True, help_text='Temporarily stores invitation token during registration', null=True),
+            model_name="profile",
+            name="pending_billing_group_invite_token",
+            field=models.UUIDField(
+                blank=True,
+                help_text="Temporarily stores invitation token during registration",
+                null=True,
+            ),
         ),
         migrations.AddField(
-            model_name='user',
-            name='billing_group_invite',
+            model_name="user",
+            name="billing_group_invite",
             field=models.IntegerField(default=0),
         ),
         migrations.AddField(
-            model_name='user',
-            name='billing_group_member',
+            model_name="user",
+            name="billing_group_member",
             field=models.IntegerField(default=0),
         ),
         migrations.CreateModel(
-            name='BillingGroupInvite',
+            name="BillingGroupInvite",
             fields=[
-                ('id', models.AutoField(primary_key=True, serialize=False)),
-                ('email', models.EmailField(db_index=True, max_length=255)),
-                ('invitation_token', models.UUIDField(db_index=True, default=uuid.uuid4, editable=False, unique=True)),
-                ('created_date', models.DateTimeField(auto_now_add=True)),
-                ('expires_date', models.DateTimeField()),
-                ('accepted', models.BooleanField(default=False)),
-                ('accepted_date', models.DateTimeField(blank=True, null=True)),
-                ('invalidated', models.BooleanField(default=False)),
-                ('invalidated_date', models.DateTimeField(blank=True, null=True)),
-                ('billing_group', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='invitations', to='profile.billinggroup')),
-                ('invited_by', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='sent_billing_group_invitations', to=settings.AUTH_USER_MODEL)),
+                ("id", models.AutoField(primary_key=True, serialize=False)),
+                ("email", models.EmailField(db_index=True, max_length=255)),
+                (
+                    "invitation_token",
+                    models.UUIDField(
+                        db_index=True, default=uuid.uuid4, editable=False, unique=True
+                    ),
+                ),
+                ("created_date", models.DateTimeField(auto_now_add=True)),
+                ("expires_date", models.DateTimeField()),
+                ("accepted", models.BooleanField(default=False)),
+                ("accepted_date", models.DateTimeField(blank=True, null=True)),
+                ("invalidated", models.BooleanField(default=False)),
+                ("invalidated_date", models.DateTimeField(blank=True, null=True)),
+                (
+                    "billing_group",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="invitations",
+                        to="profile.billinggroup",
+                    ),
+                ),
+                (
+                    "invited_by",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="sent_billing_group_invitations",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-created_date'],
+                "ordering": ["-created_date"],
             },
-            bases=(django_prometheus.models.ExportModelOperationsMixin('billing-group-invite'), models.Model),
+            bases=(
+                django_prometheus.models.ExportModelOperationsMixin(
+                    "billing-group-invite"
+                ),
+                models.Model,
+            ),
         ),
         migrations.AddField(
-            model_name='billinggroup',
-            name='primary_member',
-            field=models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='billing_group_primary_member', to='profile.profile'),
+            model_name="billinggroup",
+            name="primary_member",
+            field=models.OneToOneField(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="billing_group_primary_member",
+                to="profile.profile",
+            ),
         ),
         migrations.AddField(
-            model_name='profile',
-            name='billing_group',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='members', to='profile.billinggroup'),
+            model_name="profile",
+            name="billing_group",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="members",
+                to="profile.billinggroup",
+            ),
         ),
         migrations.AddField(
-            model_name='profile',
-            name='billing_group_invite',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='members_invites', to='profile.billinggroup'),
+            model_name="profile",
+            name="billing_group_invite",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="members_invites",
+                to="profile.billinggroup",
+            ),
         ),
         migrations.CreateModel(
-            name='BillingGroupMemberAddon',
+            name="BillingGroupMemberAddon",
             fields=[
-                ('id', models.AutoField(primary_key=True, serialize=False)),
-                ('locked_cost', models.IntegerField()),
-                ('locked_currency', models.CharField(default='aud', max_length=3)),
-                ('locked_interval', models.CharField(max_length=10)),
-                ('locked_interval_count', models.IntegerField(default=1)),
-                ('date_locked', models.DateTimeField(auto_now_add=True)),
-                ('stripe_subscription_item_id', models.CharField(blank=True, max_length=255, null=True)),
-                ('stripe_price_id', models.CharField(blank=True, max_length=255, null=True)),
-                ('addon', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='billing_group_members', to='api_admin_tools.subscriptionaddon')),
-                ('billing_group', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='member_addons', to='profile.billinggroup')),
-                ('member', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='billing_group_addons', to='profile.profile')),
+                ("id", models.AutoField(primary_key=True, serialize=False)),
+                ("locked_cost", models.IntegerField()),
+                ("locked_currency", models.CharField(default="aud", max_length=3)),
+                ("locked_interval", models.CharField(max_length=10)),
+                ("locked_interval_count", models.IntegerField(default=1)),
+                ("date_locked", models.DateTimeField(auto_now_add=True)),
+                (
+                    "stripe_subscription_item_id",
+                    models.CharField(blank=True, max_length=255, null=True),
+                ),
+                (
+                    "stripe_price_id",
+                    models.CharField(blank=True, max_length=255, null=True),
+                ),
+                (
+                    "addon",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="billing_group_members",
+                        to="api_admin_tools.subscriptionaddon",
+                    ),
+                ),
+                (
+                    "billing_group",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="member_addons",
+                        to="profile.billinggroup",
+                    ),
+                ),
+                (
+                    "member",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="billing_group_addons",
+                        to="profile.profile",
+                    ),
+                ),
             ],
             options={
-                'unique_together': {('billing_group', 'member', 'addon')},
+                "unique_together": {("billing_group", "member", "addon")},
             },
-            bases=(django_prometheus.models.ExportModelOperationsMixin('billing-group-member-addon'), models.Model),
+            bases=(
+                django_prometheus.models.ExportModelOperationsMixin(
+                    "billing-group-member-addon"
+                ),
+                models.Model,
+            ),
         ),
         migrations.AddIndex(
-            model_name='billinggroupinvite',
-            index=models.Index(fields=['email', 'billing_group'], name='profile_bil_email_848a39_idx'),
+            model_name="billinggroupinvite",
+            index=models.Index(
+                fields=["email", "billing_group"], name="profile_bil_email_848a39_idx"
+            ),
         ),
         migrations.AddIndex(
-            model_name='billinggroupinvite',
-            index=models.Index(fields=['expires_date'], name='profile_bil_expires_1ff736_idx'),
+            model_name="billinggroupinvite",
+            index=models.Index(
+                fields=["expires_date"], name="profile_bil_expires_1ff736_idx"
+            ),
         ),
         migrations.CreateModel(
-            name='ShelfRequest',
+            name="ShelfRequest",
             fields=[
-                ('id', models.AutoField(primary_key=True, serialize=False)),
-                ('quantity', models.IntegerField(default=1)),
-                ('status', models.CharField(choices=[('pending', 'Pending'), ('assigned', 'Assigned'), ('cancelled', 'Cancelled')], default='pending', max_length=20)),
-                ('requested_at', models.DateTimeField(auto_now_add=True)),
-                ('assigned_at', models.DateTimeField(blank=True, null=True)),
-                ('cancelled_at', models.DateTimeField(blank=True, null=True)),
-                ('notes', models.TextField(blank=True)),
-                ('member', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='shelf_requests', to='profile.profile')),
+                ("id", models.AutoField(primary_key=True, serialize=False)),
+                ("quantity", models.IntegerField(default=1)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("pending", "Pending"),
+                            ("assigned", "Assigned"),
+                            ("cancelled", "Cancelled"),
+                        ],
+                        default="pending",
+                        max_length=20,
+                    ),
+                ),
+                ("requested_at", models.DateTimeField(auto_now_add=True)),
+                ("assigned_at", models.DateTimeField(blank=True, null=True)),
+                ("cancelled_at", models.DateTimeField(blank=True, null=True)),
+                ("notes", models.TextField(blank=True)),
+                (
+                    "member",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="shelf_requests",
+                        to="profile.profile",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['requested_at'],
+                "ordering": ["requested_at"],
             },
-            bases=(django_prometheus.models.ExportModelOperationsMixin('shelf-request'), models.Model),
+            bases=(
+                django_prometheus.models.ExportModelOperationsMixin("shelf-request"),
+                models.Model,
+            ),
         ),
         migrations.CreateModel(
-            name='Shelf',
+            name="Shelf",
             fields=[
-                ('id', models.AutoField(primary_key=True, serialize=False)),
-                ('number', models.CharField(max_length=50, unique=True)),
-                ('status', models.CharField(choices=[('available', 'Available'), ('occupied', 'Occupied'), ('cancelled', 'Cancelled - Next Occupant Assigned')], default='available', max_length=20)),
-                ('start_date', models.DateField(blank=True, null=True)),
-                ('next_available_date', models.DateField(blank=True, null=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('current_member', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='current_shelves', to='profile.profile')),
-                ('next_member', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='next_shelves', to='profile.profile')),
+                ("id", models.AutoField(primary_key=True, serialize=False)),
+                ("number", models.CharField(max_length=50, unique=True)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("available", "Available"),
+                            ("occupied", "Occupied"),
+                            ("cancelled", "Cancelled - Next Occupant Assigned"),
+                        ],
+                        default="available",
+                        max_length=20,
+                    ),
+                ),
+                ("start_date", models.DateField(blank=True, null=True)),
+                ("next_available_date", models.DateField(blank=True, null=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "current_member",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="current_shelves",
+                        to="profile.profile",
+                    ),
+                ),
+                (
+                    "next_member",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="next_shelves",
+                        to="profile.profile",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['number'],
+                "ordering": ["number"],
             },
-            bases=(django_prometheus.models.ExportModelOperationsMixin('shelf'), models.Model),
+            bases=(
+                django_prometheus.models.ExportModelOperationsMixin("shelf"),
+                models.Model,
+            ),
         ),
         migrations.CreateModel(
-            name='MemberShelfAddon',
+            name="MemberShelfAddon",
             fields=[
-                ('id', models.AutoField(primary_key=True, serialize=False)),
-                ('locked_cost', models.IntegerField()),
-                ('locked_currency', models.CharField(default='aud', max_length=3)),
-                ('locked_interval', models.CharField(max_length=10)),
-                ('locked_interval_count', models.IntegerField(default=1)),
-                ('date_locked', models.DateTimeField(auto_now_add=True)),
-                ('stripe_subscription_item_id', models.CharField(blank=True, max_length=255, null=True)),
-                ('stripe_price_id', models.CharField(blank=True, max_length=255, null=True)),
-                ('addon', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='shelf_rentals', to='api_admin_tools.subscriptionaddon')),
-                ('member', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='shelf_addons', to='profile.profile')),
-                ('shelf', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='addon', to='profile.shelf')),
+                ("id", models.AutoField(primary_key=True, serialize=False)),
+                ("locked_cost", models.IntegerField()),
+                ("locked_currency", models.CharField(default="aud", max_length=3)),
+                ("locked_interval", models.CharField(max_length=10)),
+                ("locked_interval_count", models.IntegerField(default=1)),
+                ("date_locked", models.DateTimeField(auto_now_add=True)),
+                (
+                    "stripe_subscription_item_id",
+                    models.CharField(blank=True, max_length=255, null=True),
+                ),
+                (
+                    "stripe_price_id",
+                    models.CharField(blank=True, max_length=255, null=True),
+                ),
+                (
+                    "addon",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="shelf_rentals",
+                        to="api_admin_tools.subscriptionaddon",
+                    ),
+                ),
+                (
+                    "member",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="shelf_addons",
+                        to="profile.profile",
+                    ),
+                ),
+                (
+                    "shelf",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="addon",
+                        to="profile.shelf",
+                    ),
+                ),
             ],
-            bases=(django_prometheus.models.ExportModelOperationsMixin('member-shelf-addon'), models.Model),
+            bases=(
+                django_prometheus.models.ExportModelOperationsMixin(
+                    "member-shelf-addon"
+                ),
+                models.Model,
+            ),
         ),
         migrations.RemoveField(
-            model_name='user',
-            name='billing_group_invite',
+            model_name="user",
+            name="billing_group_invite",
         ),
         migrations.RemoveField(
-            model_name='user',
-            name='billing_group_member',
+            model_name="user",
+            name="billing_group_member",
         ),
     ]

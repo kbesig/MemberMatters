@@ -417,6 +417,7 @@ class BillingGroupInvite(
 
 def _get_default_country():
     from constance import config as constance_config
+
     return getattr(constance_config, "SITE_DEFAULT_COUNTRY", "US")
 
 

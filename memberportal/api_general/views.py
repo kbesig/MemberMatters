@@ -391,6 +391,7 @@ class ProfileDetail(generics.GenericAPIView):
     get: Gets the user profile object.
     put: Updates the user profile object.
     """
+
     def get(self, request):
         p = request.user.profile
         user = request.user

@@ -89,7 +89,9 @@ class SubscriptionAddon(ExportModelOperationsMixin("subscription-addon"), models
     id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=100)
     description = models.CharField(max_length=250, blank=True)
-    stripe_price_id = models.CharField(max_length=100, null=True, blank=True, unique=True)
+    stripe_price_id = models.CharField(
+        max_length=100, null=True, blank=True, unique=True
+    )
     stripe_product_id = models.CharField(max_length=100, blank=True)
     addon_type = models.CharField(max_length=50, choices=ADDON_TYPES)
     visible = models.BooleanField(default=True)

@@ -151,6 +151,8 @@ Do **not** create the user in Django admin if you want to log into the portal. T
 5. Open the linked profile at `http://localhost:8080/admin/profile/profile/` and set **State** to **Active** if you want the inactive banner gone.
 6. Change or remove the default admin (`default@example.com`) once your account works.
 
+Registration tries to send a verification email through Postmark. Locally there is no valid Postmark server token (the default is `PLEASE_CHANGE_ME`, or a leftover invalid key). The portal now skips that email in local/dev and marks the account verified so you can log in. If you already saw *Sorry, we're having trouble performing that action*, the account was created — do **not** register again. Open the user in Django admin and tick **Email verified**, then log in.
+
 ### 7. If you already created the user in Django admin
 
 You will not see a password + confirm form. The `password` field (if you notice it at all) stores a **hash**. Leaving it blank gives an unusable password. Typing a plaintext password there will not work for portal login.
@@ -182,7 +184,7 @@ u.email_verified = True
 u.save()
 ```
 
-If login says the email is not verified, tick **Email verified** on the User in admin (admin-created users usually already have this; frontend-registered ones start unverified).
+If login says the email is not verified, tick **Email verified** on the User in admin (admin-created users usually already have this).
 
 ### Day-to-day
 

@@ -7,6 +7,16 @@ import json
 
 logger = logging.getLogger("emails")
 
+# Constance default and other values that are not a real Postmark server token.
+_UNSET_POSTMARK_KEYS = {"", "PLEASE_CHANGE_ME"}
+# Postmark: inactive recipient (do not retry) and invalid server token (config issue).
+_POSTMARK_SKIP_ERROR_CODES = {10, 406}
+
+
+def is_postmark_configured() -> bool:
+    key = (config.POSTMARK_API_KEY or "").strip()
+    return key not in _UNSET_POSTMARK_KEYS
+
 
 def send_single_email(
     to_email: object,
@@ -15,7 +25,7 @@ def send_single_email(
     template_name=None,
     reply_to=None,
     user: object | None = None,
-) -> object:
+) -> bool:
     # TODO: move to celery
 
     template_to_use = template_name if template_name else "email_without_button.html"
@@ -31,41 +41,7 @@ def send_single_email(
         template_to_use, {"email": template_vars, "config": config}
     )
 
-    if config.POSTMARK_API_KEY:
-        postmark = PostmarkClient(server_token=config.POSTMARK_API_KEY)
-        try:
-            postmark.emails.send(
-                From=config.EMAIL_DEFAULT_FROM,
-                To=to_email,
-                Subject=subject,
-                HtmlBody=email_string,
-                ReplyTo=reply_to or config.EMAIL_DEFAULT_FROM,
-            )
-        except ClientError as e:
-            code = e.error_code
-
-            if code == 406:
-                if user:
-                    logger.warning(
-                        f"Email NOT sent because recipient is INACTIVE in postmark"
-                    )
-                    user.log_event(
-                        "Email NOT sent because recipient is INACTIVE in postmark: ",
-                        "email",
-                        "Email content: " + json.dumps(template_vars),
-                    )
-            else:
-                logger.error("Error sending email: " + str(e))
-                raise e
-
-        if user:
-            logger.info("Email sent to " + to_email + " with subject: " + subject)
-            user.log_event(
-                "Sent email with subject: " + subject,
-                "email",
-                "Email content: " + json.dumps(template_vars),
-            )
-    else:
+    if not is_postmark_configured():
         logger.warning("No postmark API key set, not sending email")
         if user:
             user.log_event(
@@ -73,6 +49,44 @@ def send_single_email(
                 "email",
                 "Email content: " + json.dumps(template_vars),
             )
+        return False
+
+    postmark = PostmarkClient(server_token=config.POSTMARK_API_KEY)
+    try:
+        postmark.emails.send(
+            From=config.EMAIL_DEFAULT_FROM,
+            To=to_email,
+            Subject=subject,
+            HtmlBody=email_string,
+            ReplyTo=reply_to or config.EMAIL_DEFAULT_FROM,
+        )
+    except ClientError as e:
+        code = e.error_code
+
+        if code in _POSTMARK_SKIP_ERROR_CODES:
+            if code == 406:
+                reason = "recipient is INACTIVE in postmark"
+            else:
+                reason = "Postmark API key is invalid"
+            logger.warning("Email NOT sent because %s", reason)
+            if user:
+                user.log_event(
+                    "Email NOT sent because " + reason + ": ",
+                    "email",
+                    "Email content: " + json.dumps(template_vars),
+                )
+            return False
+
+        logger.error("Error sending email: " + str(e))
+        raise e
+
+    if user:
+        logger.info("Email sent to " + to_email + " with subject: " + subject)
+        user.log_event(
+            "Sent email with subject: " + subject,
+            "email",
+            "Email content: " + json.dumps(template_vars),
+        )
     return True
 
 

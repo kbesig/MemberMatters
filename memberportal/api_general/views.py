@@ -7,6 +7,7 @@ from django.contrib.auth import (
 import logging
 from constance import config
 import json
+from django.conf import settings
 from django.utils.timezone import make_aware
 import datetime
 from pytz import UTC as utc
@@ -18,6 +19,7 @@ from rest_framework.views import APIView
 from .models import Kiosk, SiteSession, EmailVerificationToken
 from services.discord import post_kiosk_swipe_to_discord
 from services.slack import post_kiosk_swipe_to_slack
+from services.emails import is_postmark_configured
 import base64
 from urllib.parse import parse_qs, urlencode
 import hmac
@@ -227,13 +229,17 @@ class Login(APIView):
                 new_token = EmailVerificationToken.objects.create(user=user)
 
                 url = f"{config.SITE_URL}/profile/email/{new_token.verification_token}/verify/"
-                new_token.user.email_link(
-                    "Action Required: Verify Email",
-                    "Verify Email",
-                    "Please verify your email address to activate your account.",
-                    url,
-                    "Verify Now",
-                )
+                try:
+                    new_token.user.email_link(
+                        "Action Required: Verify Email",
+                        "Verify Email",
+                        "Please verify your email address to activate your account.",
+                        url,
+                        "Verify Now",
+                    )
+                except Exception as e:
+                    sentry_sdk.capture_exception(e)
+                    logger.error(e)
 
                 return Response(
                     {"message": "loginCard.emailNotVerified"},
@@ -711,29 +717,46 @@ class Register(APIView):
         verification_token = EmailVerificationToken.objects.create(user=new_user)
 
         url = f"{config.SITE_URL}/profile/email/{verification_token.verification_token}/verify/"
-        verification_token.user.email_link(
-            "Action Required: Verify Email",
-            "Verify Email",
-            "Please verify your email address to activate your account.",
-            url,
-            "Verify Now",
-        )
-
-        profile.email_profile_to(config.EMAIL_ADMIN)
-
-        if not config.ENABLE_STRIPE_MEMBERSHIP_PAYMENTS:
-            subject = f"Action Required: {config.SITE_OWNER} New Member Signup"
-            title = "Next Step: Register for an Induction"
-            message = (
-                f"Hi {profile.first_name}, thanks for signing up! The next step to becoming a fully "
-                "fledged member is to book in for an induction. During this "
-                "induction we will go over the basic safety and operational "
-                f"aspects of {config.SITE_OWNER}. To book in, click the link below."
+        verification_sent = False
+        try:
+            verification_sent = bool(
+                verification_token.user.email_link(
+                    "Action Required: Verify Email",
+                    "Verify Email",
+                    "Please verify your email address to activate your account.",
+                    url,
+                    "Verify Now",
+                )
             )
-            link = config.POST_INDUCTION_URL
-            btn_text = "Register for Induction"
 
-            new_user.email_link(subject, title, message, link, btn_text)
+            profile.email_profile_to(config.EMAIL_ADMIN)
+
+            if not config.ENABLE_STRIPE_MEMBERSHIP_PAYMENTS:
+                subject = f"Action Required: {config.SITE_OWNER} New Member Signup"
+                title = "Next Step: Register for an Induction"
+                message = (
+                    f"Hi {profile.first_name}, thanks for signing up! The next step to becoming a fully "
+                    "fledged member is to book in for an induction. During this "
+                    "induction we will go over the basic safety and operational "
+                    f"aspects of {config.SITE_OWNER}. To book in, click the link below."
+                )
+                link = config.POST_INDUCTION_URL
+                btn_text = "Register for Induction"
+
+                new_user.email_link(subject, title, message, link, btn_text)
+        except Exception as e:
+            sentry_sdk.capture_exception(e)
+            logger.error(e)
+
+        # Local/dev has no working Postmark token; don't block login on a
+        # verification email that can never arrive.
+        if not verification_sent and (settings.DEBUG or not is_postmark_configured()):
+            new_user.email_verified = True
+            new_user.save()
+            logger.warning(
+                "Marked %s as email_verified because the verification email was not sent",
+                new_user.email,
+            )
 
         try:
             if config.MAILCHIMP_API_KEY:

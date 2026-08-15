@@ -160,7 +160,8 @@ export default {
     resetPassword: 'Reset Password',
     loginSuccess: 'Login Successful',
     registerHere: 'Register Here',
-    notAMember: 'Not a member? ',
+    notAMember: 'Not a member?',
+    djangoAdmin: 'Admin',
     loginToContinue: 'Please login to continue',
     forgottenPassword: 'Forgot your password?',
     forgottenPasswordDescription:
@@ -522,7 +523,8 @@ export default {
     cost: 'Cost',
     noAddonCost: 'No addon cost',
     removeAddon: 'Remove Add-on',
-    removeAddonConfirm: "Are you sure you want to remove this add-on from the member's subscription? This will create a proration credit.",
+    removeAddonConfirm:
+      "Are you sure you want to remove this add-on from the member's subscription? This will create a proration credit.",
     noMembers: 'No members were found that match your filter or search query.',
   },
   doors: {
@@ -707,7 +709,7 @@ export default {
     groupName: 'Group Name',
     createGroup: 'Create Billing Group',
     createGroupDescription:
-      'Create a billing group to cover other members\' membership fees. You will become the primary (paying) member.',
+      "Create a billing group to cover other members' membership fees. You will become the primary (paying) member.",
     createGroupSuccess: 'Billing group created successfully.',
     createGroupFailed: 'Failed to create billing group.',
     deleteGroup: 'Delete Group',
@@ -737,10 +739,14 @@ export default {
     pendingInviteNewMemberDescription:
       'You have been invited to join a billing group. Complete any required steps below and then accept the invitation — your membership will be covered by the group.',
     inviteRevokedTitle: 'Billing Group Invitation No Longer Valid',
-    inviteRevoked_invalidated: 'This billing group invitation has been cancelled by the group owner. You can still sign up for a regular membership below.',
-    inviteRevoked_expired: 'This billing group invitation has expired. You can still sign up for a regular membership, or ask the group owner to send a new invitation.',
-    inviteRevoked_not_found: 'This billing group invitation could not be found. It may have been cancelled or replaced. You can still sign up for a regular membership, or ask the group owner to send a new invitation.',
-    inviteRevoked_accepted: 'This billing group invitation has already been accepted.',
+    inviteRevoked_invalidated:
+      'This billing group invitation has been cancelled by the group owner. You can still sign up for a regular membership below.',
+    inviteRevoked_expired:
+      'This billing group invitation has expired. You can still sign up for a regular membership, or ask the group owner to send a new invitation.',
+    inviteRevoked_not_found:
+      'This billing group invitation could not be found. It may have been cancelled or replaced. You can still sign up for a regular membership, or ask the group owner to send a new invitation.',
+    inviteRevoked_accepted:
+      'This billing group invitation has already been accepted.',
     signupWithoutGroup: 'Sign Up Without Group',
     pendingInviteWithSubscription:
       'You currently have an active subscription. Accepting this invitation will cancel your individual subscription. You will receive a prorated refund for the remainder of your billing period.',
@@ -754,7 +760,8 @@ export default {
     members: 'Group Members',
     isPrimary: 'Primary',
     noGroup: 'You are not in a billing group.',
-    requiresSubscription: 'You need an active subscription to create a billing group.',
+    requiresSubscription:
+      'You need an active subscription to create a billing group.',
     resendInvitation: 'Resend',
     cancelInvitation: 'Cancel',
     resendSuccess: 'Invitation resent.',
@@ -774,7 +781,8 @@ export default {
     createAddon: 'Create Addon',
     editAddon: 'Edit Addon',
     deleteAddon: 'Delete Addon',
-    deleteAddonConfirm: 'Are you sure you want to delete this addon? This will archive the Stripe product and price.',
+    deleteAddonConfirm:
+      'Are you sure you want to delete this addon? This will archive the Stripe product and price.',
     name: 'Name',
     description: 'Description',
     addonType: 'Type',
@@ -809,7 +817,8 @@ export default {
     optionalAddons: 'Optional Add-ons',
     noAddonsAvailable: 'No add-ons are currently available.',
     differentInterval: 'Different billing interval',
-    mixedIntervalWarning: 'Some add-ons have different billing intervals to your plan. You will receive separate invoices for these items.',
+    mixedIntervalWarning:
+      'Some add-ons have different billing intervals to your plan. You will receive separate invoices for these items.',
   },
   shelfRental: {
     title: 'Shelf Rental',

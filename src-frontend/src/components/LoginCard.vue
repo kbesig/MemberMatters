@@ -70,31 +70,37 @@
               {{ $t('error.requestFailed') }}
             </q-banner>
 
-            <p class="text-caption">
-              {{ $t('loginCard.notAMember') }}
-              <router-link
+            <div class="column q-gutter-y-sm">
+              <q-btn
+                :label="$t('loginCard.login')"
+                type="submit"
+                color="primary-btn"
+                class="full-width"
+                unelevated
+                :loading="buttonLoading"
+              />
+              <p class="text-center q-mb-none q-mt-sm">
+                {{ $t('loginCard.notAMember') }}
+              </p>
+              <q-btn
+                :label="$t('loginCard.registerHere')"
                 :to="{ name: 'register' }"
-                :class="$q.dark.isActive ? 'text-white' : 'text-black'"
-              >
-                {{ $t('loginCard.registerHere') }}
-              </router-link>
-            </p>
+                color="primary"
+                outline
+                unelevated
+                class="full-width"
+              />
+            </div>
 
-            <div class="row">
-              <q-space />
+            <div class="row justify-center">
               <q-btn
                 :label="$t('loginCard.resetPassword')"
                 type="reset"
                 color="primary"
                 flat
-                class="q-ml-sm"
+                dense
+                no-caps
                 @click="reset.prompt = true"
-              />
-              <q-btn
-                :label="$t('loginCard.login')"
-                type="submit"
-                color="primary-btn"
-                :loading="buttonLoading"
               />
             </div>
           </q-form>

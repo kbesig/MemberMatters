@@ -154,7 +154,8 @@ export default {
     resetPassword: 'Återställ lösenord',
     loginSuccess: 'Inloggning lyckades',
     registerHere: 'Registrera Här',
-    notAMember: 'Inte medlem än? ',
+    notAMember: 'Inte medlem än?',
+    djangoAdmin: 'Admin',
     loginToContinue: 'Logga in för att fortsätta',
     forgottenPassword: 'Glömt ditt lösenord?',
     forgottenPasswordDescription:
@@ -695,10 +696,14 @@ export default {
     pendingInviteNewMemberDescription:
       'Du har blivit inbjuden att gå med i en faktureringsgrupp. Slutför eventuella nödvändiga steg nedan och acceptera sedan inbjudan — ditt medlemskap täcks av gruppen.',
     inviteRevokedTitle: 'Faktureringsgruppens inbjudan är inte längre giltig',
-    inviteRevoked_invalidated: 'Denna inbjudan till faktureringsgruppen har avbrutits av gruppägaren. Du kan fortfarande registrera dig för ett vanligt medlemskap nedan.',
-    inviteRevoked_expired: 'Denna inbjudan till faktureringsgruppen har löpt ut. Du kan fortfarande registrera dig för ett vanligt medlemskap, eller be gruppägaren skicka en ny inbjudan.',
-    inviteRevoked_not_found: 'Denna inbjudan till faktureringsgruppen kunde inte hittas. Du kan fortfarande registrera dig för ett vanligt medlemskap, eller be gruppägaren skicka en ny inbjudan.',
-    inviteRevoked_accepted: 'Denna inbjudan till faktureringsgruppen har redan accepterats.',
+    inviteRevoked_invalidated:
+      'Denna inbjudan till faktureringsgruppen har avbrutits av gruppägaren. Du kan fortfarande registrera dig för ett vanligt medlemskap nedan.',
+    inviteRevoked_expired:
+      'Denna inbjudan till faktureringsgruppen har löpt ut. Du kan fortfarande registrera dig för ett vanligt medlemskap, eller be gruppägaren skicka en ny inbjudan.',
+    inviteRevoked_not_found:
+      'Denna inbjudan till faktureringsgruppen kunde inte hittas. Du kan fortfarande registrera dig för ett vanligt medlemskap, eller be gruppägaren skicka en ny inbjudan.',
+    inviteRevoked_accepted:
+      'Denna inbjudan till faktureringsgruppen har redan accepterats.',
     signupWithoutGroup: 'Registrera dig utan grupp',
     pendingInviteWithSubscription:
       'Du har en aktiv prenumeration. Att acceptera denna inbjudan avslutar din individuella prenumeration. Du får en proportionell återbetalning för resterande period.',
@@ -712,7 +717,8 @@ export default {
     members: 'Gruppmedlemmar',
     isPrimary: 'Primär',
     noGroup: 'Du är inte i en faktureringsgrupp.',
-    requiresSubscription: 'Du behöver en aktiv prenumeration för att skapa en faktureringsgrupp.',
+    requiresSubscription:
+      'Du behöver en aktiv prenumeration för att skapa en faktureringsgrupp.',
     resendInvitation: 'Skicka igen',
     cancelInvitation: 'Avbryt',
     resendSuccess: 'Inbjudan skickad igen.',
@@ -757,7 +763,8 @@ export default {
     optionalAddons: 'Valfria tillägg',
     noAddonsAvailable: 'Inga tillägg är för närvarande tillgängliga.',
     differentInterval: 'Annat faktureringsintervall',
-    mixedIntervalWarning: 'Vissa tillägg har ett annat faktureringsintervall än din plan. Du kommer att få separata fakturor för dessa artiklar.',
+    mixedIntervalWarning:
+      'Vissa tillägg har ett annat faktureringsintervall än din plan. Du kommer att få separata fakturor för dessa artiklar.',
   },
   shelfRental: {
     title: 'Hylluthyrning',

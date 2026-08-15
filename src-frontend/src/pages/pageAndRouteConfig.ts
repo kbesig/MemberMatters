@@ -27,7 +27,6 @@ const PageAndRouteConfig: PageAndRouteConfigType[] = [
     kiosk: true, // whether this page should show up in kiosk mode
     hiddenMenu: true, // adds the route and page config, but don't show in the menu
     component: () => import('pages/Login.vue'), // which component to load as the page
-    bgGradient: true,
   },
   {
     icon: icons.signin, // specify the icon to use
@@ -286,7 +285,6 @@ const PageAndRouteConfig: PageAndRouteConfigType[] = [
     loggedIn: false,
     kiosk: true,
     component: () => import('pages/Login.vue'),
-    bgGradient: true,
   },
   {
     icon: icons.register,

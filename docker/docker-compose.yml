@@ -11,10 +11,7 @@ x-mm-env: &mm-env
   POSTGRES_HOST: mm-postgres
 
 x-mm-app: &mm-app
-  image: rocmakers/membermatters:local
-  build:
-    context: ..
-    dockerfile: docker/Dockerfile
+  image: rocmakers/membermatters:latest
 
 services:
   mm-postgres:

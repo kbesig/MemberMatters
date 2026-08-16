@@ -1,15 +1,25 @@
+x-mm-env: &mm-env
+  MM_ENV: Production
+  MM_SECRET_KEY: ${MM_SECRET_KEY:?Set MM_SECRET_KEY in docker/.env}
+  MM_USE_POSTGRES: "true"
+  MM_REDIS_HOST: redis://mm-redis:6379/0
+  POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in docker/.env}
+  POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in docker/.env}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in docker/.env}
+  POSTGRES_HOST: mm-postgres
+
 services:
   mm-postgres:
     image: postgres:15.3-alpine
     restart: always
     environment:
-      - POSTGRES_USER=membermatters
-      - POSTGRES_PASSWORD=membermatters
-      - POSTGRES_DB=membermatters
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in docker/.env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in docker/.env}
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in docker/.env}
     volumes:
       - mm-postgres-volume:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U membermatters"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -29,10 +39,7 @@ services:
     image: rocmakers/membermatters
     restart: always
     environment:
-      MM_ENV: "Production"
-      MM_SECRET_KEY: "CHANGE_ME"
-      MM_USE_POSTGRES: True
-      MM_REDIS_HOST: "redis://mm-redis:6379/0"
+      <<: *mm-env
     ports:
       - "8000:8000"
     depends_on:
@@ -51,10 +58,8 @@ services:
     image: rocmakers/membermatters
     restart: always
     environment:
-      MM_ENV: "Production"
-      MM_USE_POSTGRES: True
-      MM_RUN_MODE: "celery_worker"
-      MM_REDIS_HOST: "redis://mm-redis:6379/0"
+      <<: *mm-env
+      MM_RUN_MODE: celery_worker
     depends_on:
       mm-webapp:
         condition: service_healthy
@@ -66,10 +71,8 @@ services:
     image: rocmakers/membermatters
     restart: always
     environment:
-      MM_ENV: "Production"
-      MM_USE_POSTGRES: True
-      MM_RUN_MODE: "celery_beat"
-      MM_REDIS_HOST: "redis://mm-redis:6379/0"
+      <<: *mm-env
+      MM_RUN_MODE: celery_beat
     depends_on:
       mm-webapp:
         condition: service_healthy

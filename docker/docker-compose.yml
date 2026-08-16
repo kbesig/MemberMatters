@@ -7,8 +7,6 @@ services:
       - POSTGRES_USER=membermatters
       - POSTGRES_PASSWORD=membermatters
       - POSTGRES_DB=membermatters
-    ports:
-      - "5432:5432"
     volumes:
       - mm-postgres-volume:/var/lib/postgresql/data
     healthcheck:
@@ -21,12 +19,10 @@ services:
   mm-redis:
     image: redis
     restart: always
-    depends_on:
-      - mm-postgres
 
   # MemberMatters
   mm-webapp:
-    image: membermatters/membermatters
+    image: rocmakers/membermatters
     restart: always
     environment:
       MM_ENV: "Production"
@@ -46,7 +42,7 @@ services:
 
   # MemberMatters Celery Worker
   mm-celery-worker:
-    image: membermatters/membermatters
+    image: rocmakers/membermatters
     restart: always
     environment:
       MM_ENV: "Production"
@@ -59,7 +55,7 @@ services:
 
   # MemberMatters Celery Beat
   mm-celery-beat:
-    image: membermatters/membermatters
+    image: rocmakers/membermatters
     restart: always
     environment:
       MM_ENV: "Production"
@@ -68,15 +64,6 @@ services:
       MM_REDIS_HOST: "redis://mm-redis:6379/0"
     depends_on:
       - mm-webapp
-      - mm-celery-worker
-      - mm-redis
-
-  mm-celery-prom-exporter:
-    image: danihodovic/celery-exporter
-    restart: always
-    environment:
-      CE_BROKER_URL: "redis://mm-redis:6379/0"
-    depends_on:
       - mm-celery-worker
       - mm-redis
 

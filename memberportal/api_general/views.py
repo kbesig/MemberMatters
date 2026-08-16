@@ -19,7 +19,7 @@ from rest_framework.views import APIView
 from .models import Kiosk, SiteSession, EmailVerificationToken
 from services.discord import post_kiosk_swipe_to_discord
 from services.slack import post_kiosk_swipe_to_slack
-from services.emails import is_postmark_configured
+from services.emails import is_mailgun_configured
 import base64
 from urllib.parse import parse_qs, urlencode
 import hmac
@@ -748,9 +748,9 @@ class Register(APIView):
             sentry_sdk.capture_exception(e)
             logger.error(e)
 
-        # Local/dev has no working Postmark token; don't block login on a
+        # Local/dev has no working Mailgun config; don't block login on a
         # verification email that can never arrive.
-        if not verification_sent and (settings.DEBUG or not is_postmark_configured()):
+        if not verification_sent and (settings.DEBUG or not is_mailgun_configured()):
             new_user.email_verified = True
             new_user.save()
             logger.warning(

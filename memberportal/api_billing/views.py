@@ -167,7 +167,7 @@ class MemberBucksAddCard(StripeAPIView):
         except Exception as e:
             capture_exception(e)
             return Response(
-                {"message": "error.postmarkNotConfigured"},
+                {"message": "error.emailNotConfigured"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 

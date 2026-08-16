@@ -1,14 +1,19 @@
 # Post Installation Steps
 Once you have completed the [Getting Started](/docs/GETTING_STARTED.md) instructions, you should complete the following steps to setup and customise your instance of MemberMatters.
 
-## Postmark
-The first step is to set up a [Postmark](https://www.postmarkapp.com) account to enable the sending of emails.  Postmark has a free trial (100 emails/mth) which should be more than enough for testing, however we recommend upgrading to a paid tier before use in production.
+## Mailgun
+The first step is to set up a [Mailgun](https://www.mailgun.com) sending domain to enable transactional emails (sign ups, password resets, MemberBucks actions, and similar). Use a **dedicated** Mailgun domain for the portal (not the same domain you send newsletters from) so bounce and complaint reputation stay isolated.
 
-Currently, a valid Postmark API token is required for MemberMatters to function correctly. Emails are sent on various tasks like sign ups, MemberBucks actions etc. You will receive errors if you try to use these functions without a correctly configured Postmark API key. 
+You need:
 
-Initially when Postmark account is created in "test mode" you can only send emails to the same domain as your Member Matters domain. This domain limitation may create problems if your test account emails use a different domain.  You can add the ability to send from a specific domain to an arbitrary domains by adding a domain "sender signature" in the Postmark account.  Errors in Member Matters caused by Postmark misconfiguration can present themselves as "Sorry, we're having trouble performing that action. Please try again later." or other ambiguous messages.  Check the [Django logs](#logs) for more details on the cause of an error.
+* A verified Mailgun sending domain (DNS: SPF, DKIM, and any CNAMEs Mailgun shows for that domain).
+* The **private** API key for that account.
+* The account **region**: US (`api.mailgun.net`) or EU (`api.eu.mailgun.net`). The wrong region looks like a broken API key (401/404).
+* A From address (`EMAIL_DEFAULT_FROM`) that Mailgun will accept on that domain.
 
-Aftert creating the [Postmark](https://www.postmarkapp.com) account see the section [Postmark (Email) Integration](#postmark-email-integration) to set the Postmark "Server API token" in the Member Matters configuration.
+Until Mailgun is configured, features that send email will skip sending or fail. Errors can present as "Sorry, we're having trouble performing that action. Please try again later." or other ambiguous messages. Check the [Django logs](#logs) for more details.
+
+After the domain is verified, see [Mailgun (Email) Integration](#mailgun-email-integration) to set the API key, domain, and region in Constance.
 
 ## Logs
 The default settings for the Django logs are configured in the Docker *container* in the file /usr/src/app/memberportal/membermatters/settings.py (if you installed as suggested by the  [Getting Started](/docs/GETTING_STARTED.md) instructions). The distributed settings.py places the logs in /usr/src/logs/django.log.  If you run into problems these logs are a good first place to look.
@@ -60,7 +65,7 @@ On this page you'll see a variety of settings. You should customise these settin
 
 A summary of the settings is available below. Most settings have a more detailed description and an example of the format required on the settings page itself.
 
-> NOTE: You *must* configure the POSTMARK_API_KEY setting or else you will have problems processing new signups.
+> NOTE: You *must* configure `MAILGUN_API_KEY`, `MAILGUN_DOMAIN`, and `MAILGUN_REGION` or else you will have problems processing new signups.
 
 ### Locale / Language Configuration
 MemberMatters has out of the box support for different locales (a combination of language and number/currency/date 
@@ -103,8 +108,10 @@ However, as noted below, currencies will use a hardcoded value set by a configur
 ### Canvas Integration
   * "CANVAS_API_TOKEN" - the API token for the Canvas LMS integration.
 
-### Postmark (Email) Integration
-* "POSTMARK_API_KEY" - the "Server API token" from your [Postmark](#postmark) account. NOTE: required for basic MemberMatters functionality.
+### Mailgun (Email) Integration
+* "MAILGUN_API_KEY" - the **private** API key from your [Mailgun](#mailgun) account. NOTE: required for basic MemberMatters functionality.
+* "MAILGUN_DOMAIN" - the verified Mailgun sending domain (e.g. `mg.example.org`).
+* "MAILGUN_REGION" - `us` or `eu`, matching the Mailgun account region.
 
 ### Twilio (SMS) Integration
 * `SMS_ENABLE` - Enables sending of SMS messages on some events. See below for a current list of events.
@@ -127,7 +134,7 @@ You cannot currently enable specific events, you either get "all or nothing".
 ### Contact Information
   * "EMAIL_SYSADMIN" - email address used for sysadmin related notifications.
   * "EMAIL_ADMIN" - email address used for general notifcations.
-  * "EMAIL_DEFAULT_FROM" - default "from" address that emails from MM will be sent as. NOTE: must be authenticated / approved in Postmark to use.
+  * "EMAIL_DEFAULT_FROM" - default "from" address that emails from MM will be sent as. NOTE: must be a sender Mailgun will accept on `MAILGUN_DOMAIN` (SPF/DKIM verified).
   * "SITE_MAIL_ADDRESS" - the physical address of the organisation for inclusion in the email footer to comply with anti spam requirements.
 
 ### Discourse SSO Protocol

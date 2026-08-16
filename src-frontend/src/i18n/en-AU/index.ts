@@ -76,8 +76,8 @@ export default {
     noData: 'No records found',
     stripeNotConfigured:
       'There was an error completing that action as Stripe is not configured.',
-    postmarkNotConfigured:
-      'There was an error completing that action as Postmark is not configured correctly.',
+    emailNotConfigured:
+      'There was an error completing that action as email is not configured correctly.',
     stripeNotConfiguredFeature:
       'Sorry, but this organisation has not configured Stripe so you are unable to use this feature.',
     copyToClipboard: 'There was a problem copying to your clipboard.',

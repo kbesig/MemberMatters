@@ -3,14 +3,22 @@ x-mm-env: &mm-env
   MM_SECRET_KEY: ${MM_SECRET_KEY:?Set MM_SECRET_KEY in docker/.env}
   MM_USE_POSTGRES: "true"
   MM_REDIS_HOST: redis://mm-redis:6379/0
+  MM_TIME_ZONE: America/New_York
+  MM_LANGUAGE_CODE: en-us
   POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in docker/.env}
   POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in docker/.env}
   POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in docker/.env}
   POSTGRES_HOST: mm-postgres
 
+x-mm-app: &mm-app
+  image: rocmakers/membermatters:local
+  build:
+    context: ..
+    dockerfile: docker/Dockerfile
+
 services:
   mm-postgres:
-    image: postgres:15.3-alpine
+    image: postgres:15-alpine
     restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in docker/.env}
@@ -19,68 +27,80 @@ services:
     volumes:
       - mm-postgres-volume:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
   # MemberMatters Redis
   mm-redis:
-    image: redis
+    image: redis:7-alpine
     restart: always
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
   # MemberMatters
   mm-webapp:
-    image: rocmakers/membermatters
+    <<: *mm-app
     restart: always
     environment:
       <<: *mm-env
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - mm-data:/usr/src/data
     depends_on:
       mm-postgres:
         condition: service_healthy
       mm-redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000"]
+      # /admin/login/ is proxied to Django; / would only prove nginx is up
+      test: ["CMD", "curl", "-f", "http://localhost:8000/admin/login/"]
       interval: 5s
       timeout: 5s
       retries: 15
+      start_period: 60s
 
   # MemberMatters Celery Worker
   mm-celery-worker:
-    image: rocmakers/membermatters
+    <<: *mm-app
     restart: always
     environment:
       <<: *mm-env
       MM_RUN_MODE: celery_worker
+    volumes:
+      - mm-data:/usr/src/data
     depends_on:
       mm-webapp:
+        condition: service_healthy
+      mm-postgres:
         condition: service_healthy
       mm-redis:
         condition: service_healthy
 
   # MemberMatters Celery Beat
   mm-celery-beat:
-    image: rocmakers/membermatters
+    <<: *mm-app
     restart: always
     environment:
       <<: *mm-env
       MM_RUN_MODE: celery_beat
+    volumes:
+      - mm-data:/usr/src/data
     depends_on:
       mm-webapp:
         condition: service_healthy
-      mm-celery-worker:
-        condition: service_started
+      mm-postgres:
+        condition: service_healthy
       mm-redis:
         condition: service_healthy
 
 volumes:
   mm-postgres-volume:
-    driver: local
+  mm-data:

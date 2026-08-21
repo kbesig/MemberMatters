@@ -20,14 +20,14 @@ Installing and configuring Moodle (other than the authentication) is out of scop
 
 We assume the following:
 
-   1. You have MemberMatters installed and running in production behind a TLS/SSL Certificate
-   2. You have a Moodle installation running in production behind a TLS/SSL Certificate
-   3. Moodle can connect to MemberMatters
-   4. MemberMatters can connect to Moodle
+1.  You have MemberMatters installed and running in production behind a TLS/SSL Certificate
+2.  You have a Moodle installation running in production behind a TLS/SSL Certificate
+3.  Moodle can connect to MemberMatters
+4.  MemberMatters can connect to Moodle
 
 **NOTE: You MUST have TLS/SSL in place (https://) in order for this to work.**
 
-In order to achieve (3) and (4), you may want to host these systems on the same server, on the same network inside your space, or on the public internet.  How to secure these platforms and keep them updated is also outside the scope of these instructions.
+In order to achieve (3) and (4), you may want to host these systems on the same server, on the same network inside your space, or on the public internet. How to secure these platforms and keep them updated is also outside the scope of these instructions.
 
 ## Setting up the platform
 
@@ -37,7 +37,7 @@ Log in to your MemberMatters admin portal (https://<your-member-matters-url>/adm
 
 ![](moodle-membermatters-openid.png)
 
-Fill in the name, set the `client type` to "Confidential", and the `response types` to "code (Authorization Code Flow)".  Finally, set the `redirect URLs` to the oauth2 callback for your Moodle installation, which is usually `https://your-moodle-install/admin/oauth2callback.php`:
+Fill in the name, set the `client type` to "Confidential", and the `response types` to "code (Authorization Code Flow)". Finally, set the `redirect URLs` to the oauth2 callback for your Moodle installation, which is usually `https://your-moodle-install/admin/oauth2callback.php`:
 
 ![](moodle-new-oauth2-client.png)
 
@@ -45,7 +45,7 @@ Click "Save and Continue Editing" to retrieve the credentials:
 
 ![](moodle-oauth2-secrets.png)
 
-Leave this tab open, and browse to `https://<MY-MOODLE-SITE>/admin/tool/oauth2/issuers.php` in a new tab. 
+Leave this tab open, and browse to `https://<MY-MOODLE-SITE>/admin/tool/oauth2/issuers.php` in a new tab.
 
 ### Moodle OAuth Setup
 
@@ -63,7 +63,7 @@ Make sure to set `This service will be used` to "Login Page and Internal Service
 
 Set a name to be displayed on the login page, and update both `Scopes to be included` fields to "openid profile email phone address".
 
-Finally, uncheck `Require Email Verification` and check the box that says you understand about disabling email verification.  If we were allowing anyone visiting the website to sign up, then we would need to take this into account, however we're only going to allow people with a MemberMatters account to log in to Moodle, so we don't need to worry about it.
+Finally, uncheck `Require Email Verification` and check the box that says you understand about disabling email verification. If we were allowing anyone visiting the website to sign up, then we would need to take this into account, however we're only going to allow people with a MemberMatters account to log in to Moodle, so we don't need to worry about it.
 
 Your screen should now look a bit like this:
 
@@ -77,9 +77,9 @@ Create a new external service:
 
 When prompted to add functions, add the following:
 
-   * `core_completion_get_activities_completion_status`
-   * `core_completion_get_course_completion_status`
-   * `core_user_get_users_by_field`
+- `core_completion_get_activities_completion_status`
+- `core_completion_get_course_completion_status`
+- `core_user_get_users_by_field`
 
 ![](moodle-external-functions.png)
 
@@ -87,13 +87,13 @@ We're nearly there, but Moodle is less than straight-forward when it comes to se
 
 Go to `https://<MY-MOODLE-SITE>/admin/settings.php?section=manageauths` and enable OAuth2 by clicking on the closed eye icon.
 
-Click on the `Test Settings` link, then click on the login button for your MemberMatters installation.  You should be redirected to MemberMatters, and then back to Moodle, and if everything is working then Moodle should show your name, nickname, email, and phone number as stored in MemberMatters.
+Click on the `Test Settings` link, then click on the login button for your MemberMatters installation. You should be redirected to MemberMatters, and then back to Moodle, and if everything is working then Moodle should show your name, nickname, email, and phone number as stored in MemberMatters.
 
 As a final test, log out of Moodle, then use the MemberMatters button to log in.
 
 If everything works then congratulations, you can continue to create your API Key and induction course.
 
-If you run into any errors, please [log a bug in Github](https://github.com/membermatters/MemberMatters/issues) or join the Discord server and we'll try to help!
+If you run into any errors, please [log a bug in Github](https://github.com/rocmakers/MemberMatters/issues) or join the Discord server and we'll try to help!
 
 The last step is to create an API key for MemberMatters to check on course status in Moodle.
 
@@ -107,13 +107,12 @@ Select your custom service from the `Service` dropdown, and your admin user from
 
 Make a note of this value, you'll need it for the next steps.
 
-
 ## Induction Course
 
 Creating the induction course is out of scope of this tutorial, however once you have the course created go to the Constance configuration screen in MemberMatters (https://<MY-MEMBER-MATTERS-SITE>/admin/constance/config/) and scroll down to the `Moodle (LMS) Integration` section.
 
 Enable the Moodle integration and input the Moodle API Key you created above, your Moodle site address, and the course ID, then save your settings.
 
-Any new user should now automatically be redirected to your Moodle induction course and be able to log in via MemberMatters to complete the course.  Once the course is complete, they will be returned to MemberMatters.
+Any new user should now automatically be redirected to your Moodle induction course and be able to log in via MemberMatters to complete the course. Once the course is complete, they will be returned to MemberMatters.
 
 In future, they can log in to any courses they want to take on your Moodle installation using their MemberMatters account.

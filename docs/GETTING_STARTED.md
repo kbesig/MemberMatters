@@ -8,7 +8,7 @@
 To get started, download the latest version from docker hub using the following command:
 
 ```bash
-docker pull membermatters/membermatters
+docker pull rocmakers/membermatters
 ```
 
 Create a file to contain all of your environment variables.
@@ -24,7 +24,7 @@ Once you've downloaded the docker image and configured your environment variable
 and mount a volume. Replace `/usr/app/` with the location you'd like to store your database and other data.
 
 ```bash
-docker create -p 8000:8000 --name membermatters --restart always --env-file /usr/app/env.list -v /usr/app/:/usr/src/data membermatters/membermatters
+docker create -p 8000:8000 --name membermatters --restart always --env-file /usr/app/env.list -v /usr/app/:/usr/src/data rocmakers/membermatters
 ```
 
 After you've created the container (using the command above) you can start/stop/restart it with:
@@ -75,13 +75,13 @@ We suggest writing a bash script like the one below:
 ```bash
 # update.sh
 echo "checking for new docker image"
-docker pull membermatters/membermatters
+docker pull rocmakers/membermatters
 echo "Stopping the docker container"
 docker stop membermatters
 echo "Removing the old docker container"
 docker rm membermatters
 echo "Creating new docker container"
-docker create -p 8000:8000 --name membermatters --restart always --detach --env-file /usr/app/env.list -v /usr/app/:/usr/src/data membermatters/membermatters
+docker create -p 8000:8000 --name membermatters --restart always --detach --env-file /usr/app/env.list -v /usr/app/:/usr/src/data rocmakers/membermatters
 echo "Running new docker container"
 docker start membermatters
 ```

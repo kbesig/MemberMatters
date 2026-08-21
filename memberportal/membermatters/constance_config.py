@@ -102,7 +102,7 @@ CONSTANCE_CONFIG = {
             }
            ]
         """,
-        "You can specify cards that go on the home page with JSON. See https://github.com/MemberMatters/MemberMatters/blob/master/GETTING_STARTED.md.",
+        "You can specify cards that go on the home page with JSON. See https://github.com/rocmakers/MemberMatters/blob/master/GETTING_STARTED.md.",
     ),
     "WELCOME_EMAIL_CARDS": (
         "[]",

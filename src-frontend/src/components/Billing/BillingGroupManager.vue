@@ -28,13 +28,17 @@
             </tr>
           </thead>
           <tbody>
-            <tr
-              v-for="member in billingGroup.members"
-              :key="member.id"
-            >
+            <tr v-for="member in billingGroup.members" :key="member.id">
               <td class="text-left">
                 {{ member.name }}
-                <q-chip v-if="member.isPrimary" dense size="sm" color="primary" text-color="white" class="q-ml-xs">
+                <q-chip
+                  v-if="member.isPrimary"
+                  dense
+                  size="sm"
+                  color="primary"
+                  text-color="white"
+                  class="q-ml-xs"
+                >
                   {{ $t('billingGroup.isPrimary') }}
                 </q-chip>
               </td>
@@ -44,7 +48,11 @@
                   {{
                     $t('paymentPlans.intervalDescription', {
                       currency: member.lockedCurrency.toUpperCase(),
-                      amount: $n(member.lockedCost / 100, 'currency', siteLocaleCurrency),
+                      amount: $n(
+                        member.lockedCost / 100,
+                        'currency',
+                        siteLocaleCurrency
+                      ),
                       interval: $tc(
                         `paymentPlans.interval.${member.lockedInterval.toLowerCase()}`,
                         member.lockedIntervalCount
@@ -77,14 +85,18 @@
           class="rounded-borders desktop-hide"
           style="max-width: 350px"
         >
-          <q-item
-            v-for="member in billingGroup.members"
-            :key="member.id"
-          >
+          <q-item v-for="member in billingGroup.members" :key="member.id">
             <q-item-section>
               <q-item-label lines="1">
                 {{ member.name }}
-                <q-chip v-if="member.isPrimary" dense size="sm" color="primary" text-color="white" class="q-ml-xs">
+                <q-chip
+                  v-if="member.isPrimary"
+                  dense
+                  size="sm"
+                  color="primary"
+                  text-color="white"
+                  class="q-ml-xs"
+                >
                   {{ $t('billingGroup.isPrimary') }}
                 </q-chip>
               </q-item-label>
@@ -94,7 +106,11 @@
                   {{
                     $t('paymentPlans.intervalDescription', {
                       currency: member.lockedCurrency.toUpperCase(),
-                      amount: $n(member.lockedCost / 100, 'currency', siteLocaleCurrency),
+                      amount: $n(
+                        member.lockedCost / 100,
+                        'currency',
+                        siteLocaleCurrency
+                      ),
                       interval: $tc(
                         `paymentPlans.interval.${member.lockedInterval.toLowerCase()}`,
                         member.lockedIntervalCount
@@ -105,7 +121,10 @@
                 <span v-else>{{ $t('adminTools.noAddonCost') }}</span>
               </q-item-label>
             </q-item-section>
-            <q-item-section side v-if="billingGroup.isPrimaryMember && !member.isPrimary">
+            <q-item-section
+              side
+              v-if="billingGroup.isPrimaryMember && !member.isPrimary"
+            >
               <q-btn
                 flat
                 round
@@ -314,14 +333,23 @@ export default {
           { email: this.inviteEmail.trim() }
         );
         if (result.data.success) {
-          this.$q.notify({ type: 'positive', message: this.$t('billingGroup.inviteMemberSent') });
+          this.$q.notify({
+            type: 'positive',
+            message: this.$t('billingGroup.inviteMemberSent'),
+          });
           this.inviteEmail = '';
           await this.fetchGroup();
         } else {
-          this.$q.notify({ type: 'negative', message: this.$t('billingGroup.inviteMemberFailed') });
+          this.$q.notify({
+            type: 'negative',
+            message: this.$t('billingGroup.inviteMemberFailed'),
+          });
         }
       } catch {
-        this.$q.notify({ type: 'negative', message: this.$t('billingGroup.inviteMemberFailed') });
+        this.$q.notify({
+          type: 'negative',
+          message: this.$t('billingGroup.inviteMemberFailed'),
+        });
       } finally {
         this.loadingInvite = false;
       }
@@ -335,14 +363,23 @@ export default {
           { email: this.inviteEmail.trim() }
         );
         if (result.data.success) {
-          this.$q.notify({ type: 'positive', message: this.$t('billingGroup.inviteNonmemberSent') });
+          this.$q.notify({
+            type: 'positive',
+            message: this.$t('billingGroup.inviteNonmemberSent'),
+          });
           this.inviteEmail = '';
           await this.fetchInvitations();
         } else {
-          this.$q.notify({ type: 'negative', message: this.$t('billingGroup.inviteNonmemberFailed') });
+          this.$q.notify({
+            type: 'negative',
+            message: this.$t('billingGroup.inviteNonmemberFailed'),
+          });
         }
       } catch {
-        this.$q.notify({ type: 'negative', message: this.$t('billingGroup.inviteNonmemberFailed') });
+        this.$q.notify({
+          type: 'negative',
+          message: this.$t('billingGroup.inviteNonmemberFailed'),
+        });
       } finally {
         this.loadingInviteNonmember = false;
       }
@@ -351,7 +388,9 @@ export default {
       this.$q
         .dialog({
           title: this.$t('billingGroup.removeMember'),
-          message: this.$t('billingGroup.removeMemberConfirm', { name: member.name }),
+          message: this.$t('billingGroup.removeMemberConfirm', {
+            name: member.name,
+          }),
           cancel: this.$t('button.cancel'),
           persistent: true,
         })
@@ -362,13 +401,22 @@ export default {
               { data: { member_id: member.id } }
             );
             if (result.data.success) {
-              this.$q.notify({ type: 'positive', message: this.$t('billingGroup.removeMemberSuccess') });
+              this.$q.notify({
+                type: 'positive',
+                message: this.$t('billingGroup.removeMemberSuccess'),
+              });
               await this.fetchGroup();
             } else {
-              this.$q.notify({ type: 'negative', message: this.$t('billingGroup.removeMemberFailed') });
+              this.$q.notify({
+                type: 'negative',
+                message: this.$t('billingGroup.removeMemberFailed'),
+              });
             }
           } catch {
-            this.$q.notify({ type: 'negative', message: this.$t('billingGroup.removeMemberFailed') });
+            this.$q.notify({
+              type: 'negative',
+              message: this.$t('billingGroup.removeMemberFailed'),
+            });
           }
         });
     },
@@ -387,13 +435,22 @@ export default {
               '/api/billing/billing-group/'
             );
             if (result.data.success) {
-              this.$q.notify({ type: 'positive', message: this.$t('billingGroup.deleteGroupSuccess') });
+              this.$q.notify({
+                type: 'positive',
+                message: this.$t('billingGroup.deleteGroupSuccess'),
+              });
               this.billingGroup = null;
             } else {
-              this.$q.notify({ type: 'negative', message: this.$t('billingGroup.deleteGroupFailed') });
+              this.$q.notify({
+                type: 'negative',
+                message: this.$t('billingGroup.deleteGroupFailed'),
+              });
             }
           } catch {
-            this.$q.notify({ type: 'negative', message: this.$t('billingGroup.deleteGroupFailed') });
+            this.$q.notify({
+              type: 'negative',
+              message: this.$t('billingGroup.deleteGroupFailed'),
+            });
           } finally {
             this.loadingDelete = false;
           }
@@ -414,13 +471,22 @@ export default {
               '/api/billing/billing-group/leave/'
             );
             if (result.data.success) {
-              this.$q.notify({ type: 'positive', message: this.$t('billingGroup.leaveGroupSuccess') });
+              this.$q.notify({
+                type: 'positive',
+                message: this.$t('billingGroup.leaveGroupSuccess'),
+              });
               this.billingGroup = null;
             } else {
-              this.$q.notify({ type: 'negative', message: this.$t('billingGroup.leaveGroupFailed') });
+              this.$q.notify({
+                type: 'negative',
+                message: this.$t('billingGroup.leaveGroupFailed'),
+              });
             }
           } catch {
-            this.$q.notify({ type: 'negative', message: this.$t('billingGroup.leaveGroupFailed') });
+            this.$q.notify({
+              type: 'negative',
+              message: this.$t('billingGroup.leaveGroupFailed'),
+            });
           } finally {
             this.loadingLeave = false;
           }
@@ -432,13 +498,22 @@ export default {
           `/api/billing/billing-group/invitations/${id}/resend/`
         );
         if (result.data.success) {
-          this.$q.notify({ type: 'positive', message: this.$t('billingGroup.resendSuccess') });
+          this.$q.notify({
+            type: 'positive',
+            message: this.$t('billingGroup.resendSuccess'),
+          });
           await this.fetchInvitations();
         } else {
-          this.$q.notify({ type: 'negative', message: this.$t('billingGroup.resendFailed') });
+          this.$q.notify({
+            type: 'negative',
+            message: this.$t('billingGroup.resendFailed'),
+          });
         }
       } catch {
-        this.$q.notify({ type: 'negative', message: this.$t('billingGroup.resendFailed') });
+        this.$q.notify({
+          type: 'negative',
+          message: this.$t('billingGroup.resendFailed'),
+        });
       }
     },
     async cancelInvitation(id: number) {
@@ -447,13 +522,22 @@ export default {
           `/api/billing/billing-group/invitations/${id}/cancel/`
         );
         if (result.data.success) {
-          this.$q.notify({ type: 'positive', message: this.$t('billingGroup.cancelInvitationSuccess') });
+          this.$q.notify({
+            type: 'positive',
+            message: this.$t('billingGroup.cancelInvitationSuccess'),
+          });
           await this.fetchInvitations();
         } else {
-          this.$q.notify({ type: 'negative', message: this.$t('billingGroup.cancelInvitationFailed') });
+          this.$q.notify({
+            type: 'negative',
+            message: this.$t('billingGroup.cancelInvitationFailed'),
+          });
         }
       } catch {
-        this.$q.notify({ type: 'negative', message: this.$t('billingGroup.cancelInvitationFailed') });
+        this.$q.notify({
+          type: 'negative',
+          message: this.$t('billingGroup.cancelInvitationFailed'),
+        });
       }
     },
   },

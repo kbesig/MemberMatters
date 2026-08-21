@@ -7,14 +7,20 @@
     <template v-else>
       <!-- Active addons on subscription -->
       <div class="text-subtitle2 q-mb-sm">{{ $t('addons.activeAddons') }}</div>
-      <div v-if="activeAddons.length === 0" class="text-caption text-grey q-mb-md">
+      <div
+        v-if="activeAddons.length === 0"
+        class="text-caption text-grey q-mb-md"
+      >
         {{ $t('addons.noActiveAddons') }}
       </div>
       <q-list v-else dense class="q-mb-md">
         <q-item v-for="addon in activeAddons" :key="addon.id">
           <q-item-section>
             <q-item-label>{{ addon.name }}</q-item-label>
-            <q-item-label caption>{{ addon.cost_display }} / {{ addon.interval_count }} {{ addon.interval }}</q-item-label>
+            <q-item-label caption
+              >{{ addon.cost_display }} / {{ addon.interval_count }}
+              {{ addon.interval }}</q-item-label
+            >
           </q-item-section>
           <q-item-section side>
             <q-btn
@@ -32,13 +38,20 @@
 
       <!-- Available addons -->
       <template v-if="availableAddons.length">
-        <div class="text-subtitle2 q-mb-sm">{{ $t('addons.availableAddons') }}</div>
+        <div class="text-subtitle2 q-mb-sm">
+          {{ $t('addons.availableAddons') }}
+        </div>
         <q-list dense>
           <q-item v-for="addon in availableAddons" :key="addon.id">
             <q-item-section>
               <q-item-label>{{ addon.name }}</q-item-label>
-              <q-item-label caption>{{ addon.cost_display }} / {{ addon.interval_count }} {{ addon.interval }}</q-item-label>
-              <q-item-label caption v-if="addon.description">{{ addon.description }}</q-item-label>
+              <q-item-label caption
+                >{{ addon.cost_display }} / {{ addon.interval_count }}
+                {{ addon.interval }}</q-item-label
+              >
+              <q-item-label caption v-if="addon.description">{{
+                addon.description
+              }}</q-item-label>
             </q-item-section>
             <q-item-section side>
               <q-btn

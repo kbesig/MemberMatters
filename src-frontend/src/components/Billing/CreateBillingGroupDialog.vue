@@ -19,11 +19,7 @@
       </q-card-section>
 
       <q-card-actions align="right">
-        <q-btn
-          flat
-          :label="$t('button.cancel')"
-          @click="onDialogCancel"
-        />
+        <q-btn flat :label="$t('button.cancel')" @click="onDialogCancel" />
         <q-btn
           color="primary"
           :label="$t('billingGroup.createGroup')"

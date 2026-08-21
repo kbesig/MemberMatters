@@ -37,18 +37,26 @@
     </template>
 
     <template v-else-if="!currentPlan">
-      <template v-if="profile.pendingBillingGroupInvite && inviteStatus === 'valid'">
+      <template
+        v-if="profile.pendingBillingGroupInvite && inviteStatus === 'valid'"
+      >
         <div class="q-pa-md full-width" style="max-width: 600px">
           <q-banner class="bg-primary text-white q-mb-md" rounded>
             <template v-slot:avatar>
               <q-icon name="mdi-account-group" />
             </template>
-            <div class="text-h6">{{ $t('billingGroup.pendingInviteTitle') }}</div>
-            <p class="q-mb-none">{{ $t('billingGroup.pendingInviteNewMemberDescription') }}</p>
+            <div class="text-h6">
+              {{ $t('billingGroup.pendingInviteTitle') }}
+            </div>
+            <p class="q-mb-none">
+              {{ $t('billingGroup.pendingInviteNewMemberDescription') }}
+            </p>
           </q-banner>
 
           <div v-if="completeSignupError" class="q-mb-md">
-            <q-banner class="bg-negative text-white" rounded>{{ completeSignupError }}</q-banner>
+            <q-banner class="bg-negative text-white" rounded>{{
+              completeSignupError
+            }}</q-banner>
           </div>
 
           <signup-required-steps v-if="!canSignup" />
@@ -62,14 +70,22 @@
           />
         </div>
       </template>
-      <template v-else-if="profile.pendingBillingGroupInvite && inviteStatus !== 'valid'">
+      <template
+        v-else-if="
+          profile.pendingBillingGroupInvite && inviteStatus !== 'valid'
+        "
+      >
         <div class="q-pa-md full-width" style="max-width: 600px">
           <q-banner class="bg-warning text-white q-mb-md" rounded>
             <template v-slot:avatar>
               <q-icon name="mdi-account-remove" />
             </template>
-            <div class="text-h6">{{ $t('billingGroup.inviteRevokedTitle') }}</div>
-            <p class="q-mb-none">{{ $t(`billingGroup.inviteRevoked_${inviteStatus}`) }}</p>
+            <div class="text-h6">
+              {{ $t('billingGroup.inviteRevokedTitle') }}
+            </div>
+            <p class="q-mb-none">
+              {{ $t(`billingGroup.inviteRevoked_${inviteStatus}`) }}
+            </p>
           </q-banner>
           <q-btn
             color="primary"
@@ -113,7 +129,9 @@
           >
             <thead>
               <tr>
-                <th class="text-left">{{ $t('paymentPlans.membershipTier') }}</th>
+                <th class="text-left">
+                  {{ $t('paymentPlans.membershipTier') }}
+                </th>
                 <th class="text-left">{{ $t('paymentPlans.billingPlan') }}</th>
                 <th class="text-left">{{ $t('paymentPlans.billingDate') }}</th>
                 <th class="text-left">{{ $t('paymentPlans.signupDate') }}</th>
@@ -130,7 +148,11 @@
                   {{
                     $t('paymentPlans.intervalDescription', {
                       currency: currentPlan.currency.toUpperCase(),
-                      amount: $n(currentPlan.cost / 100, 'currency', siteLocaleCurrency),
+                      amount: $n(
+                        currentPlan.cost / 100,
+                        'currency',
+                        siteLocaleCurrency
+                      ),
                       interval: $tc(
                         `paymentPlans.interval.${currentPlan.interval.toLowerCase()}`,
                         currentPlan.intervalAmount
@@ -172,13 +194,17 @@
                     {{ subscriptionStatus }}
                   </q-chip>
                 </q-item-label>
-                <q-item-label caption>{{ $t('adminTools.subscriptionStatus') }}</q-item-label>
+                <q-item-label caption>{{
+                  $t('adminTools.subscriptionStatus')
+                }}</q-item-label>
               </q-item-section>
             </q-item>
             <q-item>
               <q-item-section>
                 <q-item-label lines="1">{{ currentTier.name }}</q-item-label>
-                <q-item-label caption>{{ $t('paymentPlans.membershipTier') }}</q-item-label>
+                <q-item-label caption>{{
+                  $t('paymentPlans.membershipTier')
+                }}</q-item-label>
               </q-item-section>
             </q-item>
             <q-item>
@@ -187,7 +213,11 @@
                   {{
                     $t('paymentPlans.intervalDescription', {
                       currency: currentPlan.currency.toUpperCase(),
-                      amount: $n(currentPlan.cost / 100, 'currency', siteLocaleCurrency),
+                      amount: $n(
+                        currentPlan.cost / 100,
+                        'currency',
+                        siteLocaleCurrency
+                      ),
                       interval: $tc(
                         `paymentPlans.interval.${currentPlan.interval.toLowerCase()}`,
                         currentPlan.intervalAmount
@@ -195,31 +225,43 @@
                     })
                   }}
                 </q-item-label>
-                <q-item-label caption>{{ $t('paymentPlans.billingPlan') }}</q-item-label>
+                <q-item-label caption>{{
+                  $t('paymentPlans.billingPlan')
+                }}</q-item-label>
               </q-item-section>
             </q-item>
             <q-item>
               <q-item-section>
-                <q-item-label lines="1">{{ billingCycleAnchorDate }}</q-item-label>
-                <q-item-label caption>{{ $t('paymentPlans.billingDate') }}</q-item-label>
+                <q-item-label lines="1">{{
+                  billingCycleAnchorDate
+                }}</q-item-label>
+                <q-item-label caption>{{
+                  $t('paymentPlans.billingDate')
+                }}</q-item-label>
               </q-item-section>
             </q-item>
             <q-item>
               <q-item-section>
                 <q-item-label lines="1">{{ signupDate }}</q-item-label>
-                <q-item-label caption>{{ $t('paymentPlans.signupDate') }}</q-item-label>
+                <q-item-label caption>{{
+                  $t('paymentPlans.signupDate')
+                }}</q-item-label>
               </q-item-section>
             </q-item>
             <q-item>
               <q-item-section>
                 <q-item-label lines="1">{{ currentPeriodEnd }}</q-item-label>
-                <q-item-label caption>{{ $t('paymentPlans.renewalDate') }}</q-item-label>
+                <q-item-label caption>{{
+                  $t('paymentPlans.renewalDate')
+                }}</q-item-label>
               </q-item-section>
             </q-item>
             <q-item v-if="subscriptionInfo.cancelAt">
               <q-item-section>
                 <q-item-label lines="1">{{ cancelAtDate }}</q-item-label>
-                <q-item-label caption>{{ $t('paymentPlans.cancelsOn') }}</q-item-label>
+                <q-item-label caption>{{
+                  $t('paymentPlans.cancelsOn')
+                }}</q-item-label>
               </q-item-section>
             </q-item>
           </q-list>
@@ -384,7 +426,9 @@ export default defineComponent({
           await this.getProfile();
           this.$router.push({ name: 'dashboard' });
         } else {
-          this.completeSignupError = this.$t(result.data.message || 'error.requestFailed');
+          this.completeSignupError = this.$t(
+            result.data.message || 'error.requestFailed'
+          );
         }
       } catch {
         this.completeSignupError = this.$t('error.requestFailed');

@@ -173,7 +173,7 @@ export default defineComponent({
         mobile: null,
         password: null,
         vehicleRegistrationPlate: null,
-      billing_group_invite: null as string | null,
+        billing_group_invite: null as string | null,
       },
     };
   },
@@ -214,7 +214,9 @@ export default defineComponent({
           mobile: this.form.mobile,
           password: this.form.password,
           vehicleRegistrationPlate: this.form.vehicleRegistrationPlate,
-          ...(this.form.billing_group_invite ? { billing_group_invite: this.form.billing_group_invite } : {}),
+          ...(this.form.billing_group_invite
+            ? { billing_group_invite: this.form.billing_group_invite }
+            : {}),
         })
         .then(() => {
           this.failed = false;

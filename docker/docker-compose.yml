@@ -11,7 +11,7 @@ x-mm-env: &mm-env
   POSTGRES_HOST: mm-postgres
 
 x-mm-app: &mm-app
-  image: rocmakers/membermatters:latest
+  image: rocmakers/membermatters:${MM_IMAGE_TAG:-latest}
 
 services:
   mm-postgres:
@@ -48,7 +48,7 @@ services:
     environment:
       <<: *mm-env
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:${MM_HOST_PORT:-8000}:8000"
     volumes:
       - mm-data:/usr/src/data
     depends_on:

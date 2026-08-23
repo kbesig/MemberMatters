@@ -229,17 +229,13 @@ class Login(APIView):
                 new_token = EmailVerificationToken.objects.create(user=user)
 
                 url = f"{config.SITE_URL}/profile/email/{new_token.verification_token}/verify/"
-                try:
-                    new_token.user.email_link(
-                        "Action Required: Verify Email",
-                        "Verify Email",
-                        "Please verify your email address to activate your account.",
-                        url,
-                        "Verify Now",
-                    )
-                except Exception as e:
-                    sentry_sdk.capture_exception(e)
-                    logger.error(e)
+                new_token.user.email_link(
+                    "Action Required: Verify Email",
+                    "Verify Email",
+                    "Please verify your email address to activate your account.",
+                    url,
+                    "Verify Now",
+                )
 
                 return Response(
                     {"message": "loginCard.emailNotVerified"},

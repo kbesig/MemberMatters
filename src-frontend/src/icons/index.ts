@@ -21,6 +21,7 @@ export default {
 
   tools: 'mdi-tools',
   admintools: 'mdi-toolbox',
+  djangoAdmin: 'mdi-shield-account',
   reportIssue: 'mdi-alert',
   submitProxy: 'mdi-ballot',
   groupMembers: 'mdi-account-multiple',

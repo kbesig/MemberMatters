@@ -46,6 +46,7 @@ export default {
     manageBillingGroups: 'Billing Groups',
     manageAddons: 'Subscription Addons',
     manageShelves: 'Shelf Rental',
+    djangoAdmin: 'Django Admin',
   },
   dashboard: {
     usefulResources: 'Member Resources',
@@ -161,7 +162,6 @@ export default {
     loginSuccess: 'Login Successful',
     registerHere: 'Register Here',
     notAMember: 'Not a member?',
-    djangoAdmin: 'Admin',
     loginToContinue: 'Please login to continue',
     forgottenPassword: 'Forgot your password?',
     forgottenPasswordDescription:

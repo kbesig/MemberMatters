@@ -4,6 +4,7 @@ import type { Component } from 'vue';
 export type PageAndRouteConfigType = {
   icon: string;
   to?: string;
+  href?: string;
   name: string;
   loggedIn: boolean;
   kiosk?: boolean;
@@ -163,6 +164,13 @@ const PageAndRouteConfig: PageAndRouteConfigType[] = [
         loggedIn: true,
         admin: true,
         component: () => import('pages/AdminTools/ManageShelves.vue'),
+      },
+      {
+        icon: icons.djangoAdmin,
+        href: '/admin/',
+        name: 'djangoAdmin',
+        loggedIn: true,
+        admin: true,
       },
     ],
   },

@@ -1,7 +1,7 @@
 <template>
   <span v-if="linkVisible">
     <template v-if="!children && !hiddenMenu">
-      <q-item clickable :to="{ name: name, params: defaultParams }">
+      <q-item clickable v-bind="itemBinding({ href, name, defaultParams })">
         <q-item-section v-if="icon" avatar>
           <q-icon :name="icon" />
         </q-item-section>
@@ -26,7 +26,7 @@
           :key="child.name"
           clickable
           :inset-level="1"
-          :to="{ name: child.name, params: child.defaultParams }"
+          v-bind="itemBinding(child)"
         >
           <q-item-section v-if="child.icon" avatar>
             <q-icon :name="child.icon" />
@@ -78,6 +78,19 @@ export default {
       type: String,
       default: '',
     },
+    href: {
+      type: String,
+      default: '',
+    },
+  },
+  methods: {
+    itemBinding(link) {
+      if (link.href) {
+        return { href: link.href };
+      }
+
+      return { to: { name: link.name, params: link.defaultParams } };
+    },
   },
   computed: {
     ...mapGetters('profile', ['loggedIn']),
@@ -97,6 +110,11 @@ export default {
 
         // if we are not allowed to display it in kiosk mode
         if (this.$q.platform.is.electron && !link.kiosk) {
+          return false;
+        }
+
+        // Django admin is a web-only destination
+        if (link.href && this.$q.platform.is.capacitor) {
           return false;
         }
 

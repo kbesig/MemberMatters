@@ -46,6 +46,7 @@ export default {
     manageBillingGroups: 'Faktureringsgrupper',
     manageAddons: 'Prenumerationstillägg',
     manageShelves: 'Hylluthyrning',
+    djangoAdmin: 'Django Admin',
   },
   dashboard: {
     usefulResources: 'Medlemsresurser',
@@ -155,7 +156,6 @@ export default {
     loginSuccess: 'Inloggning lyckades',
     registerHere: 'Registrera Här',
     notAMember: 'Inte medlem än?',
-    djangoAdmin: 'Admin',
     loginToContinue: 'Logga in för att fortsätta',
     forgottenPassword: 'Glömt ditt lösenord?',
     forgottenPasswordDescription:

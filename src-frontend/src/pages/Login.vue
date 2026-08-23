@@ -22,14 +22,6 @@
     <h4 v-if="$q.platform.is.electron" class="q-my-sm text-white">OR</h4>
 
     <login-rfid-card v-if="$q.platform.is.electron" />
-
-    <a
-      v-if="!$q.platform.is.capacitor"
-      href="/admin/"
-      class="admin-link q-mt-lg"
-    >
-      {{ $t('loginCard.djangoAdmin') }}
-    </a>
   </q-page>
 </template>
 
@@ -123,17 +115,6 @@ export default {
 .login-page > :not(.login-hero) {
   position: relative;
   z-index: 1;
-}
-
-.admin-link {
-  font-size: 11px;
-  opacity: 0.35;
-  color: #fff;
-  text-decoration: none;
-}
-
-.admin-link:hover {
-  opacity: 0.7;
 }
 
 @media (max-width: 767px) {

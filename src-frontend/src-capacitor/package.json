@@ -9,5 +9,8 @@
     "@capacitor/cli": "^5.2.2",
     "@capacitor/core": "^2.4.7",
     "@capacitor/ios": "^2.4.7"
+  },
+  "engines": {
+    "node": "^24"
   }
 }

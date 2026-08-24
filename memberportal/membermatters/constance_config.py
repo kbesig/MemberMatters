@@ -265,9 +265,17 @@ CONSTANCE_CONFIG = {
         "https://8ba460796a9a40d4ac2584e0e8dca59a@sentry.serv02.binarydigital.com.au/4",
         "Enter a Sentry DSN to enable sentry logging of backend errors.",
     ),
-    "POSTMARK_API_KEY": (
+    "MAILGUN_API_KEY": (
         "PLEASE_CHANGE_ME",
-        "The API key used to send email with Postmark.",
+        "The private API key used to send email with Mailgun.",
+    ),
+    "MAILGUN_DOMAIN": (
+        "",
+        "The verified Mailgun sending domain (e.g. mg.example.org).",
+    ),
+    "MAILGUN_REGION": (
+        "us",
+        "Mailgun account region: us or eu. Must match the account; the wrong region looks like a broken API key.",
     ),
     # Induction
     "MOODLE_INDUCTION_ENABLED": (
@@ -484,7 +492,14 @@ CONSTANCE_CONFIG_FIELDSETS = OrderedDict(
                 "CANVAS_INDUCTION_COURSE_ID",
             ),
         ),
-        ("Postmark (EMAIL) Integration", ("POSTMARK_API_KEY",)),
+        (
+            "Mailgun (EMAIL) Integration",
+            (
+                "MAILGUN_API_KEY",
+                "MAILGUN_DOMAIN",
+                "MAILGUN_REGION",
+            ),
+        ),
         (
             "Twilio (SMS) Integration",
             (

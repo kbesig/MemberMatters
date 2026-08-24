@@ -73,8 +73,7 @@ export default {
     noValue: 'Inget värde',
     noData: 'Ingen data hittas',
     stripeNotConfigured: 'Betalplattformen Stripe är inte konfigurerad än.',
-    postmarkNotConfigured:
-      'Mailplattformen Postmark är inte konfigurerad korrekt.',
+    emailNotConfigured: 'E-post är inte konfigurerad korrekt.',
     stripeNotConfiguredFeature:
       'Denna funktion är inte konfigurerad i betalplattformen Stripe än.',
     copyToClipboard: 'Det uppstod ett problem vid kopiering.',

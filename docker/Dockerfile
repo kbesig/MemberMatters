@@ -11,11 +11,12 @@ RUN mkdir -p /usr/src/app/frontend && mkdir /usr/src/logs && mkdir /usr/src/data
 RUN apt-get update -y && apt-get install -y nginx curl daphne
 
 # Install Node
-ENV NODE_VERSION=22.2.0
 SHELL ["/bin/bash", "--login", "-c"]
 
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.35.3/install.sh | bash
-RUN nvm install ${NODE_VERSION}
+# This should use the .nvmrc file
+COPY .nvmrc .
+RUN nvm install
 RUN npm config delete prefix
 RUN nvm use --delete-prefix v${NODE_VERSION} --silent
 

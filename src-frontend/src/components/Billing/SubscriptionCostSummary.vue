@@ -74,7 +74,8 @@
 
     <div class="text-caption text-grey q-mb-md">
       {{ $t('paymentPlans.billingPeriod') }}:
-      {{ formatDate(upcoming.period_start) }} – {{ formatDate(upcoming.period_end) }}
+      {{ formatDate(upcoming.period_start) }} –
+      {{ formatDate(upcoming.period_end) }}
     </div>
   </div>
 </template>
@@ -100,7 +101,11 @@ export default {
         currency: string;
         period_start: number;
         period_end: number;
-        lines: { description: string; amount: number; category: LineCategory }[];
+        lines: {
+          description: string;
+          amount: number;
+          category: LineCategory;
+        }[];
       },
     };
   },

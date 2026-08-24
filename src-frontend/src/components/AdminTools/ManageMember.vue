@@ -795,14 +795,19 @@
                 >
                   <thead>
                     <tr>
-                      <th class="text-left">{{ $t('adminTools.memberName') }}</th>
-                      <th class="text-left">{{ $t('adminTools.addonName') }}</th>
+                      <th class="text-left">
+                        {{ $t('adminTools.memberName') }}
+                      </th>
+                      <th class="text-left">
+                        {{ $t('adminTools.addonName') }}
+                      </th>
                       <th class="text-left">{{ $t('adminTools.cost') }}</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr
-                      v-for="(ma, idx) in billing.subscription.billingGroup.memberAddons"
+                      v-for="(ma, idx) in billing.subscription.billingGroup
+                        .memberAddons"
                       :key="idx"
                     >
                       <td class="text-left">{{ ma.memberName }}</td>
@@ -812,7 +817,11 @@
                           {{
                             $t('paymentPlans.intervalDescription', {
                               currency: ma.currency.toUpperCase(),
-                              amount: $n(ma.cost / 100, 'currency', siteLocaleCurrency),
+                              amount: $n(
+                                ma.cost / 100,
+                                'currency',
+                                siteLocaleCurrency
+                              ),
                               interval: $tc(
                                 `paymentPlans.interval.${ma.interval.toLowerCase()}`,
                                 ma.intervalCount
@@ -833,7 +842,8 @@
                   style="max-width: 350px"
                 >
                   <q-item
-                    v-for="(ma, idx) in billing.subscription.billingGroup.memberAddons"
+                    v-for="(ma, idx) in billing.subscription.billingGroup
+                      .memberAddons"
                     :key="idx"
                   >
                     <q-item-section>
@@ -846,7 +856,11 @@
                           {{
                             $t('paymentPlans.intervalDescription', {
                               currency: ma.currency.toUpperCase(),
-                              amount: $n(ma.cost / 100, 'currency', siteLocaleCurrency),
+                              amount: $n(
+                                ma.cost / 100,
+                                'currency',
+                                siteLocaleCurrency
+                              ),
                               interval: $tc(
                                 `paymentPlans.interval.${ma.interval.toLowerCase()}`,
                                 ma.intervalCount
@@ -874,7 +888,9 @@
                 >
                   <thead>
                     <tr>
-                      <th class="text-left">{{ $t('adminTools.addonName') }}</th>
+                      <th class="text-left">
+                        {{ $t('adminTools.addonName') }}
+                      </th>
                       <th class="text-left">{{ $t('adminTools.cost') }}</th>
                       <th></th>
                     </tr>
@@ -889,7 +905,11 @@
                         {{
                           $t('paymentPlans.intervalDescription', {
                             currency: addon.currency.toUpperCase(),
-                            amount: $n(addon.cost / 100, 'currency', siteLocaleCurrency),
+                            amount: $n(
+                              addon.cost / 100,
+                              'currency',
+                              siteLocaleCurrency
+                            ),
                             interval: $tc(
                               `paymentPlans.interval.${addon.interval.toLowerCase()}`,
                               addon.intervalCount
@@ -929,7 +949,11 @@
                         {{
                           $t('paymentPlans.intervalDescription', {
                             currency: addon.currency.toUpperCase(),
-                            amount: $n(addon.cost / 100, 'currency', siteLocaleCurrency),
+                            amount: $n(
+                              addon.cost / 100,
+                              'currency',
+                              siteLocaleCurrency
+                            ),
                             interval: $tc(
                               `paymentPlans.interval.${addon.interval.toLowerCase()}`,
                               addon.intervalCount
@@ -1835,10 +1859,12 @@ export default defineComponent({
       this.profileForm.addressLine1 = this.selectedMember.addressLine1 ?? '';
       this.profileForm.addressLine2 = this.selectedMember.addressLine2 ?? '';
       this.profileForm.city = this.selectedMember.city ?? '';
-      this.profileForm.addressStateProvince = this.selectedMember.addressStateProvince ?? '';
+      this.profileForm.addressStateProvince =
+        this.selectedMember.addressStateProvince ?? '';
       this.profileForm.country = this.selectedMember.country ?? '';
       this.profileForm.postalCode = this.selectedMember.postalCode ?? '';
-      this.profileForm.additionalContacts = this.selectedMember.additionalContacts ?? '';
+      this.profileForm.additionalContacts =
+        this.selectedMember.additionalContacts ?? '';
       this.profileForm.notes = this.selectedMember.notes ?? '';
     },
     saveChange(field: keyof typeof this.saved) {

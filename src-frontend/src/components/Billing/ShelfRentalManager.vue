@@ -10,7 +10,9 @@
 
       <template v-else>
         <!-- Current shelves -->
-        <div class="text-subtitle2 q-mb-sm">{{ $t('shelfRental.myShelves') }}</div>
+        <div class="text-subtitle2 q-mb-sm">
+          {{ $t('shelfRental.myShelves') }}
+        </div>
         <div v-if="shelves.length === 0" class="text-caption text-grey q-mb-md">
           {{ $t('shelfRental.noShelves') }}
         </div>
@@ -31,8 +33,13 @@
         </q-list>
 
         <!-- Pending requests -->
-        <div class="text-subtitle2 q-mb-sm">{{ $t('shelfRental.pendingRequests') }}</div>
-        <div v-if="pendingRequests.length === 0" class="text-caption text-grey q-mb-md">
+        <div class="text-subtitle2 q-mb-sm">
+          {{ $t('shelfRental.pendingRequests') }}
+        </div>
+        <div
+          v-if="pendingRequests.length === 0"
+          class="text-caption text-grey q-mb-md"
+        >
           {{ $t('shelfRental.noPendingRequests') }}
         </div>
         <q-list v-else dense class="q-mb-md">
@@ -42,7 +49,8 @@
                 {{ $t('shelfRental.quantity') }}: {{ req.quantity }}
               </q-item-label>
               <q-item-label caption>
-                {{ $t('shelfRental.requestedAt') }}: {{ formatDate(req.requested_at) }}
+                {{ $t('shelfRental.requestedAt') }}:
+                {{ formatDate(req.requested_at) }}
               </q-item-label>
             </q-item-section>
             <q-item-section side>
@@ -127,13 +135,22 @@ export default {
           quantity: 1,
         });
         if (result.data.success) {
-          this.$q.notify({ type: 'positive', message: this.$t('shelfRental.requestSuccess') });
+          this.$q.notify({
+            type: 'positive',
+            message: this.$t('shelfRental.requestSuccess'),
+          });
           await this.fetchShelves();
         } else {
-          this.$q.notify({ type: 'negative', message: this.$t('shelfRental.requestFailed') });
+          this.$q.notify({
+            type: 'negative',
+            message: this.$t('shelfRental.requestFailed'),
+          });
         }
       } catch {
-        this.$q.notify({ type: 'negative', message: this.$t('shelfRental.requestFailed') });
+        this.$q.notify({
+          type: 'negative',
+          message: this.$t('shelfRental.requestFailed'),
+        });
       } finally {
         this.loadingRequest = false;
       }
@@ -141,17 +158,29 @@ export default {
     async cancelRequest(req: (typeof this.pendingRequests)[0]) {
       this.loadingCancel = req.id;
       try {
-        const result = await this.$axios.delete('/api/shelf-rental/my-shelves/', {
-          data: { request_id: req.id },
-        });
+        const result = await this.$axios.delete(
+          '/api/shelf-rental/my-shelves/',
+          {
+            data: { request_id: req.id },
+          }
+        );
         if (result.data.success) {
-          this.$q.notify({ type: 'positive', message: this.$t('shelfRental.cancelRequestSuccess') });
+          this.$q.notify({
+            type: 'positive',
+            message: this.$t('shelfRental.cancelRequestSuccess'),
+          });
           await this.fetchShelves();
         } else {
-          this.$q.notify({ type: 'negative', message: this.$t('shelfRental.cancelRequestFailed') });
+          this.$q.notify({
+            type: 'negative',
+            message: this.$t('shelfRental.cancelRequestFailed'),
+          });
         }
       } catch {
-        this.$q.notify({ type: 'negative', message: this.$t('shelfRental.cancelRequestFailed') });
+        this.$q.notify({
+          type: 'negative',
+          message: this.$t('shelfRental.cancelRequestFailed'),
+        });
       } finally {
         this.loadingCancel = null;
       }

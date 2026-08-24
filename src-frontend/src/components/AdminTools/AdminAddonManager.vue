@@ -36,7 +36,9 @@
       <template v-slot:body-cell-stripeSynced="props">
         <q-td :props="props">
           <q-icon
-            :name="props.row.stripe_synced ? 'mdi-check-circle' : 'mdi-alert-circle'"
+            :name="
+              props.row.stripe_synced ? 'mdi-check-circle' : 'mdi-alert-circle'
+            "
             :color="props.row.stripe_synced ? 'positive' : 'warning'"
           />
         </q-td>
@@ -68,7 +70,9 @@
       <q-card style="min-width: 400px">
         <q-card-section class="row items-center q-pb-none">
           <div class="text-h6">
-            {{ editingAddon ? $t('addons.editAddon') : $t('addons.createAddon') }}
+            {{
+              editingAddon ? $t('addons.editAddon') : $t('addons.createAddon')
+            }}
           </div>
           <q-space />
           <q-btn icon="mdi-close" flat round dense v-close-popup />
@@ -139,10 +143,7 @@
             dense
             type="number"
           />
-          <q-toggle
-            v-model="form.visible"
-            :label="$t('addons.visible')"
-          />
+          <q-toggle v-model="form.visible" :label="$t('addons.visible')" />
         </q-card-section>
 
         <q-card-actions align="right">
@@ -208,7 +209,13 @@ export default {
     },
     columns() {
       return [
-        { name: 'name', label: this.$t('addons.name'), field: 'name', sortable: true, align: 'left' },
+        {
+          name: 'name',
+          label: this.$t('addons.name'),
+          field: 'name',
+          sortable: true,
+          align: 'left',
+        },
         {
           name: 'addon_type',
           label: this.$t('addons.addonType'),
@@ -216,7 +223,13 @@ export default {
           sortable: true,
           align: 'left',
         },
-        { name: 'cost', label: this.$t('addons.cost'), field: 'cost_display', sortable: true, align: 'left' },
+        {
+          name: 'cost',
+          label: this.$t('addons.cost'),
+          field: 'cost_display',
+          sortable: true,
+          align: 'left',
+        },
         {
           name: 'interval',
           label: this.$t('addons.interval'),
@@ -224,7 +237,12 @@ export default {
             `${row.interval_count} ${row.interval}`,
           align: 'left',
         },
-        { name: 'stripeSynced', label: this.$t('addons.stripeSynced'), field: 'stripe_synced', align: 'center' },
+        {
+          name: 'stripeSynced',
+          label: this.$t('addons.stripeSynced'),
+          field: 'stripe_synced',
+          align: 'center',
+        },
         { name: 'actions', label: '', field: 'actions', align: 'right' },
       ];
     },
@@ -291,10 +309,16 @@ export default {
             `/api/admin/addons/${this.editingAddon.id}/`,
             this.form
           );
-          this.$q.notify({ type: 'positive', message: this.$t('addons.updateSuccess') });
+          this.$q.notify({
+            type: 'positive',
+            message: this.$t('addons.updateSuccess'),
+          });
         } else {
           result = await this.$axios.post('/api/admin/addons/', this.form);
-          this.$q.notify({ type: 'positive', message: this.$t('addons.createSuccess') });
+          this.$q.notify({
+            type: 'positive',
+            message: this.$t('addons.createSuccess'),
+          });
         }
         if (result.data) {
           this.showDialog = false;
@@ -322,10 +346,16 @@ export default {
         .onOk(async () => {
           try {
             await this.$axios.delete(`/api/admin/addons/${addon.id}/`);
-            this.$q.notify({ type: 'positive', message: this.$t('addons.deleteSuccess') });
+            this.$q.notify({
+              type: 'positive',
+              message: this.$t('addons.deleteSuccess'),
+            });
             await this.fetchAddons();
           } catch {
-            this.$q.notify({ type: 'negative', message: this.$t('addons.deleteFailed') });
+            this.$q.notify({
+              type: 'negative',
+              message: this.$t('addons.deleteFailed'),
+            });
           }
         });
     },

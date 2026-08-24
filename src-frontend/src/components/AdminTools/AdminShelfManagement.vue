@@ -17,7 +17,9 @@
       <!-- Shelves table -->
       <div class="col">
         <div class="row justify-between items-center q-mb-sm">
-          <div class="text-subtitle1">{{ $t('shelfRental.manageShelves') }}</div>
+          <div class="text-subtitle1">
+            {{ $t('shelfRental.manageShelves') }}
+          </div>
           <q-btn
             color="primary"
             size="sm"
@@ -104,11 +106,15 @@
 
       <!-- Request queue -->
       <div class="col-12 col-md-4">
-        <div class="text-subtitle1 q-mb-sm">{{ $t('shelfRental.requestQueue') }}</div>
+        <div class="text-subtitle1 q-mb-sm">
+          {{ $t('shelfRental.requestQueue') }}
+        </div>
         <q-list dense bordered>
           <q-item v-if="queue.length === 0">
             <q-item-section>
-              <q-item-label class="text-grey">{{ $t('shelfRental.noRequests') }}</q-item-label>
+              <q-item-label class="text-grey">{{
+                $t('shelfRental.noRequests')
+              }}</q-item-label>
             </q-item-section>
           </q-item>
           <q-item v-for="req in queue" :key="req.id">
@@ -193,7 +199,10 @@
             >
               <q-item-section>
                 <q-item-label>{{ m.name }}</q-item-label>
-                <q-item-label caption :class="selectedMember?.id === m.id ? 'text-white' : ''">
+                <q-item-label
+                  caption
+                  :class="selectedMember?.id === m.id ? 'text-white' : ''"
+                >
                   {{ m.email }}
                 </q-item-label>
               </q-item-section>
@@ -238,11 +247,16 @@
               :key="m.id"
               clickable
               @click="selectNextMember(m)"
-              :class="{ 'bg-primary text-white': selectedNextMember?.id === m.id }"
+              :class="{
+                'bg-primary text-white': selectedNextMember?.id === m.id,
+              }"
             >
               <q-item-section>
                 <q-item-label>{{ m.name }}</q-item-label>
-                <q-item-label caption :class="selectedNextMember?.id === m.id ? 'text-white' : ''">
+                <q-item-label
+                  caption
+                  :class="selectedNextMember?.id === m.id ? 'text-white' : ''"
+                >
                   {{ m.email }}
                 </q-item-label>
               </q-item-section>
@@ -286,8 +300,17 @@ export default {
       loading: true,
       filter: '',
       shelves: [] as ShelfRow[],
-      queue: [] as { id: number; member: { id: number; name: string }; quantity: number; requested_at: string }[],
-      stats: null as null | { total: number; occupied: number; available: number },
+      queue: [] as {
+        id: number;
+        member: { id: number; name: string };
+        quantity: number;
+        requested_at: string;
+      }[],
+      stats: null as null | {
+        total: number;
+        occupied: number;
+        available: number;
+      },
       // Create shelf
       showCreateShelf: false,
       newShelfNumber: '',
@@ -314,21 +337,40 @@ export default {
     },
     shelfColumns() {
       return [
-        { name: 'number', label: this.$t('shelfRental.shelfNumber'), field: 'number', sortable: true, align: 'left' },
-        { name: 'status', label: this.$t('shelfRental.status'), field: 'status', sortable: true, align: 'left' },
+        {
+          name: 'number',
+          label: this.$t('shelfRental.shelfNumber'),
+          field: 'number',
+          sortable: true,
+          align: 'left',
+        },
+        {
+          name: 'status',
+          label: this.$t('shelfRental.status'),
+          field: 'status',
+          sortable: true,
+          align: 'left',
+        },
         {
           name: 'current_member',
           label: this.$t('shelfRental.currentMember'),
-          field: (row: ShelfRow) => row.current_member?.name || this.$t('shelfRental.noCurrentMember'),
+          field: (row: ShelfRow) =>
+            row.current_member?.name || this.$t('shelfRental.noCurrentMember'),
           align: 'left',
         },
         {
           name: 'next_member',
           label: this.$t('shelfRental.nextMember'),
-          field: (row: ShelfRow) => row.next_member?.name || this.$t('shelfRental.noNextMember'),
+          field: (row: ShelfRow) =>
+            row.next_member?.name || this.$t('shelfRental.noNextMember'),
           align: 'left',
         },
-        { name: 'start_date', label: this.$t('shelfRental.startDate'), field: 'start_date', align: 'left' },
+        {
+          name: 'start_date',
+          label: this.$t('shelfRental.startDate'),
+          field: 'start_date',
+          align: 'left',
+        },
         { name: 'actions', label: '', field: 'actions', align: 'right' },
       ];
     },
@@ -354,7 +396,9 @@ export default {
     async fetchData() {
       this.loading = true;
       try {
-        const result = await this.$axios.get('/api/shelf-rental/admin/shelves/');
+        const result = await this.$axios.get(
+          '/api/shelf-rental/admin/shelves/'
+        );
         this.shelves = result.data.shelves || [];
         this.stats = result.data.stats || null;
         this.queue = result.data.queue || [];
@@ -373,19 +417,31 @@ export default {
       if (!this.newShelfNumber.trim()) return;
       this.loadingCreate = true;
       try {
-        const result = await this.$axios.post('/api/shelf-rental/admin/shelves/', {
-          action: 'create',
-          number: this.newShelfNumber.trim(),
-        });
+        const result = await this.$axios.post(
+          '/api/shelf-rental/admin/shelves/',
+          {
+            action: 'create',
+            number: this.newShelfNumber.trim(),
+          }
+        );
         if (result.data.success || result.data.id) {
-          this.$q.notify({ type: 'positive', message: this.$t('shelfRental.createShelfSuccess') });
+          this.$q.notify({
+            type: 'positive',
+            message: this.$t('shelfRental.createShelfSuccess'),
+          });
           this.showCreateShelf = false;
           await this.fetchData();
         } else {
-          this.$q.notify({ type: 'negative', message: this.$t('shelfRental.createShelfFailed') });
+          this.$q.notify({
+            type: 'negative',
+            message: this.$t('shelfRental.createShelfFailed'),
+          });
         }
       } catch {
-        this.$q.notify({ type: 'negative', message: this.$t('shelfRental.createShelfFailed') });
+        this.$q.notify({
+          type: 'negative',
+          message: this.$t('shelfRental.createShelfFailed'),
+        });
       } finally {
         this.loadingCreate = false;
       }
@@ -402,9 +458,15 @@ export default {
       const availableShelf = this.shelves.find((s) => s.status === 'available');
       if (availableShelf) {
         this.assigningShelf = availableShelf;
-        this.selectedMember = { id: req.member.id, name: req.member.name, email: '' };
+        this.selectedMember = {
+          id: req.member.id,
+          name: req.member.name,
+          email: '',
+        };
         this.memberSearch = req.member.name;
-        this.memberResults = [{ id: req.member.id, name: req.member.name, email: '' }];
+        this.memberResults = [
+          { id: req.member.id, name: req.member.name, email: '' },
+        ];
         this.showAssign = true;
       }
     },
@@ -415,7 +477,9 @@ export default {
       }
       try {
         const result = await this.$axios.get(
-          `/api/shelf-rental/admin/members/search/?q=${encodeURIComponent(query)}`
+          `/api/shelf-rental/admin/members/search/?q=${encodeURIComponent(
+            query
+          )}`
         );
         this.memberResults = Array.isArray(result.data) ? result.data : [];
       } catch {
@@ -429,20 +493,32 @@ export default {
       if (!this.assigningShelf || !this.selectedMember) return;
       this.loadingAssign = true;
       try {
-        const result = await this.$axios.post('/api/shelf-rental/admin/shelves/', {
-          action: 'assign',
-          shelf_id: this.assigningShelf.id,
-          member_id: this.selectedMember.id,
-        });
+        const result = await this.$axios.post(
+          '/api/shelf-rental/admin/shelves/',
+          {
+            action: 'assign',
+            shelf_id: this.assigningShelf.id,
+            member_id: this.selectedMember.id,
+          }
+        );
         if (result.data.success) {
-          this.$q.notify({ type: 'positive', message: this.$t('shelfRental.assignSuccess') });
+          this.$q.notify({
+            type: 'positive',
+            message: this.$t('shelfRental.assignSuccess'),
+          });
           this.showAssign = false;
           await this.fetchData();
         } else {
-          this.$q.notify({ type: 'negative', message: this.$t('shelfRental.assignFailed') });
+          this.$q.notify({
+            type: 'negative',
+            message: this.$t('shelfRental.assignFailed'),
+          });
         }
       } catch {
-        this.$q.notify({ type: 'negative', message: this.$t('shelfRental.assignFailed') });
+        this.$q.notify({
+          type: 'negative',
+          message: this.$t('shelfRental.assignFailed'),
+        });
       } finally {
         this.loadingAssign = false;
       }
@@ -464,17 +540,29 @@ export default {
             const result = await this.$axios.delete(
               '/api/shelf-rental/admin/shelves/',
               {
-                data: { shelf_id: shelf.id, member_id: shelf.current_member!.id },
+                data: {
+                  shelf_id: shelf.id,
+                  member_id: shelf.current_member!.id,
+                },
               }
             );
             if (result.data.success) {
-              this.$q.notify({ type: 'positive', message: this.$t('shelfRental.removeMemberSuccess') });
+              this.$q.notify({
+                type: 'positive',
+                message: this.$t('shelfRental.removeMemberSuccess'),
+              });
               await this.fetchData();
             } else {
-              this.$q.notify({ type: 'negative', message: this.$t('shelfRental.removeMemberFailed') });
+              this.$q.notify({
+                type: 'negative',
+                message: this.$t('shelfRental.removeMemberFailed'),
+              });
             }
           } catch {
-            this.$q.notify({ type: 'negative', message: this.$t('shelfRental.removeMemberFailed') });
+            this.$q.notify({
+              type: 'negative',
+              message: this.$t('shelfRental.removeMemberFailed'),
+            });
           }
         });
     },
@@ -492,7 +580,9 @@ export default {
       }
       try {
         const result = await this.$axios.get(
-          `/api/shelf-rental/admin/members/search/?q=${encodeURIComponent(query)}`
+          `/api/shelf-rental/admin/members/search/?q=${encodeURIComponent(
+            query
+          )}`
         );
         this.nextMemberResults = Array.isArray(result.data) ? result.data : [];
       } catch {
@@ -506,20 +596,32 @@ export default {
       if (!this.setNextShelf || !this.selectedNextMember) return;
       this.loadingSetNext = true;
       try {
-        const result = await this.$axios.post('/api/shelf-rental/admin/shelves/', {
-          action: 'set-next',
-          shelf_id: this.setNextShelf.id,
-          member_id: this.selectedNextMember.id,
-        });
+        const result = await this.$axios.post(
+          '/api/shelf-rental/admin/shelves/',
+          {
+            action: 'set-next',
+            shelf_id: this.setNextShelf.id,
+            member_id: this.selectedNextMember.id,
+          }
+        );
         if (result.data.success) {
-          this.$q.notify({ type: 'positive', message: this.$t('shelfRental.setNextSuccess') });
+          this.$q.notify({
+            type: 'positive',
+            message: this.$t('shelfRental.setNextSuccess'),
+          });
           this.showSetNext = false;
           await this.fetchData();
         } else {
-          this.$q.notify({ type: 'negative', message: this.$t('shelfRental.setNextFailed') });
+          this.$q.notify({
+            type: 'negative',
+            message: this.$t('shelfRental.setNextFailed'),
+          });
         }
       } catch {
-        this.$q.notify({ type: 'negative', message: this.$t('shelfRental.setNextFailed') });
+        this.$q.notify({
+          type: 'negative',
+          message: this.$t('shelfRental.setNextFailed'),
+        });
       } finally {
         this.loadingSetNext = false;
       }

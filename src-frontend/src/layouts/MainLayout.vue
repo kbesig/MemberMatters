@@ -120,7 +120,7 @@
           <br /><br />
           <a
             :class="$q.dark.isActive ? 'text-white' : 'text-black'"
-            href="https://github.com/membermatters/MemberMatters"
+            href="https://github.com/rocmakers/MemberMatters"
             target="_blank"
             >MemberMatters {{ $t('about.linkText') }}</a
           >

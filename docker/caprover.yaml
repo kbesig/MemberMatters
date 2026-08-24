@@ -4,7 +4,7 @@ caproverOneClickApp:
     - id: $$cap_mm_version
       label: MemberMatters Version
       defaultValue: "latest"
-      description: Check out the docker page for the valid tags https://hub.docker.com/r/membermatters/membermatters/tags
+      description: Check out the docker page for the valid tags https://hub.docker.com/r/rocmakers/membermatters/tags
       validRegex: /^([^\s^\/])+$/
     - id: $$cap_env
       label: Environment
@@ -70,7 +70,7 @@ services:
 
   # MemberMatters
   $$cap_appname-mm-webapp:
-    image: membermatters/membermatters:$$cap_mm_version
+    image: rocmakers/membermatters:$$cap_mm_version
     restart: always
     environment:
       MM_ENV: $$cap_env
@@ -91,7 +91,7 @@ services:
 
   # MemberMatters Celery Worker
   $$cap_appname-mm-celery-worker:
-    image: membermatters/membermatters:$$cap_mm_version
+    image: rocmakers/membermatters:$$cap_mm_version
     restart: always
     environment:
       MM_ENV: $$cap_env
@@ -113,7 +113,7 @@ services:
 
   # MemberMatters Celery Beat
   $$cap_appname-mm-celery-beat:
-    image: membermatters/membermatters:$$cap_mm_version
+    image: rocmakers/membermatters:$$cap_mm_version
     restart: always
     environment:
       MM_ENV: $$cap_env

@@ -20,10 +20,7 @@
         })
       }}
     </div>
-    <div
-      v-if="hasActiveSubscription"
-      class="q-mt-xs text-caption"
-    >
+    <div v-if="hasActiveSubscription" class="q-mt-xs text-caption">
       {{ $t('billingGroup.pendingInviteWithSubscription') }}
     </div>
 

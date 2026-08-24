@@ -138,11 +138,21 @@
           <q-item v-for="addon in availableAddons" :key="addon.id">
             <q-item-section>
               <q-item-label>{{ addon.name }}</q-item-label>
-              <q-item-label caption v-if="addon.description">{{ addon.description }}</q-item-label>
+              <q-item-label caption v-if="addon.description">{{
+                addon.description
+              }}</q-item-label>
               <q-item-label caption>
                 {{ $n(addon.cost / 100, 'currency', siteLocaleCurrency) }} /
-                {{ $tc(`paymentPlans.interval.${addon.interval.toLowerCase()}`, addon.interval_count) }}
-                <span v-if="addon.interval !== selectedPlan.interval" class="text-warning">
+                {{
+                  $tc(
+                    `paymentPlans.interval.${addon.interval.toLowerCase()}`,
+                    addon.interval_count
+                  )
+                }}
+                <span
+                  v-if="addon.interval !== selectedPlan.interval"
+                  class="text-warning"
+                >
                   &nbsp;— {{ $t('addons.differentInterval') }}
                 </span>
               </q-item-label>
@@ -157,7 +167,10 @@
           {{ $t('addons.noAddonsAvailable') }}
         </div>
 
-        <div v-if="selectedAddonIds.length && selectedPlan && hasMixedIntervals" class="q-mb-md">
+        <div
+          v-if="selectedAddonIds.length && selectedPlan && hasMixedIntervals"
+          class="q-mb-md"
+        >
           <q-banner rounded inline-actions class="bg-warning text-white">
             <template v-slot:avatar><q-icon name="mdi-alert" /></template>
             {{ $t('addons.mixedIntervalWarning') }}
@@ -167,7 +180,11 @@
         <div class="row justify-start q-mt-md">
           <q-btn flat @click="backToBilling" :label="$tc('button.back')" />
           <q-space />
-          <q-btn color="primary" @click="step++" :label="$tc('button.continue')" />
+          <q-btn
+            color="primary"
+            @click="step++"
+            :label="$tc('button.continue')"
+          />
         </div>
       </q-step>
 
@@ -326,7 +343,9 @@ export default defineComponent({
       this.loadingAddons = true;
       try {
         const result = await this.$axios.get('/api/billing/addons/');
-        this.availableAddons = Array.isArray(result.data) ? result.data : (result.data.addons || []);
+        this.availableAddons = Array.isArray(result.data)
+          ? result.data
+          : result.data.addons || [];
       } catch {
         this.availableAddons = [];
       } finally {

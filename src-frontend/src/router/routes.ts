@@ -7,6 +7,9 @@ const menuRoutes: RouteRecordRaw[] = mainMenu.map(
   (menuItem): RouteRecordRaw => {
     if (menuItem.children) {
       menuItem.children.map((child) => {
+        // External links are not Vue routes (e.g. Django admin)
+        if (child.href) return;
+
         childRoutes.push({
           path: child.to ? child.to : '/no-route', // this means we didn't get a path and shouldn't route there
           component: child.component
